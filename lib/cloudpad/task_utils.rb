@@ -35,6 +35,48 @@ module Cloudpad
       fetch(:building_image) == img
     end
 
+    def container_public_key
+      kp = File.join(context_path, "keys", "container.pub")
+      return File.read(kp).gsub("\n", "")
+    end
+
+    def next_available_server
+      hm = {}
+      servers = roles(:host)
+      servers.each do |server|
+        hm[server.properties.source.name] = 0
+      end
+
+      fetch(:running_containers).each do |ci|
+        hm[ci["host"]] += 1
+      end
+
+      mv = hm.values.min
+      rn = hm.invert[mv]
+      servers.select {|server|
+        server.properties.source.name == rn
+      }.first
+    end
+
+    def server_running_container(ci)
+      ci = container_with_name(ci) unless ci.is_a?(Cloudpad::Container)
+      return nil if ci.nil?
+      roles(:host).select{|s| s.properties.source == ci.host}.first
+    end
+
+    def container_with_name(name)
+      return fetch(:running_containers).select{|c| c.name == name}.first
+    end
+
+    def next_available_container_instance(type)
+      taken = fetch(:running_containers).select{|c| c["type"] == type}.collect{|c| c["instance"]}.sort
+      num = 1
+      while(taken.include?(num)) do
+        num += 1
+      end
+      return num
+    end
+
     ## on host
 
     def process_running?(name)

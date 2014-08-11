@@ -78,13 +78,13 @@ module Cloudpad
         raise "Boxchief Error: #{resp["error"]}"
       end
 
-      servers = resp["data"].collect do |sd|
-        server = {}
-        server[:name] = sd["hostname"]
-        server[:external_ip] = sd["ip"]
-        server[:roles] = sd["roles"]
-        server[:cloud_provider] = "boxchief"
-        Host.new(server)
+      hosts = resp["data"].collect do |sd|
+        host = Host.new
+        host[:name] = sd["hostname"]
+        host[:external_ip] = sd["ip"]
+        host[:roles] = sd["roles"]
+        host[:cloud_provider] = "boxchief"
+        host
       end
       return {hosts: servers}
     end
@@ -95,7 +95,7 @@ module Cloudpad
   class CloudElement
 
     def initialize(opts)
-      @data = opts.with_indifferent_access
+      @data = opts.stringify_keys
       #puts self.methods.inspect
       #puts "#{self.respond_to?(:roles)} - #{@data["roles"]}"
     end
@@ -105,7 +105,11 @@ module Cloudpad
     end
 
     def [](field)
-      @data[field]
+      @data[field.to_s]
+    end
+
+    def []=(field, val)
+      @data[field.to_s] = val
     end
 
     def method_missing(name, *args)
@@ -121,11 +125,11 @@ module Cloudpad
   class Host < CloudElement
 
     def internal_ip
-      self[:internal_ip] || self[:external_ip]
+      self["internal_ip"] || self["external_ip"]
     end
 
     def roles
-      (@data[:roles] || []).collect(:&to_sym)
+      (@data["roles"] || []).collect(&:to_sym)
     end
 
     def has_id?(val)
@@ -135,7 +139,74 @@ module Cloudpad
 
   end
 
-  class Container < CloudElement
+  class Container
+
+    attr_accessor :host, :name, :instance, :type, :ports, :image_options, :app_key, :image, :state, :status, :ip_address
+
+    def self.prepare(params, img_opts, host)
+      ct = self.new
+      ct.type = params[:type]
+      ct.instance = params[:instance]
+      ct.app_key = params[:app_key]
+      ct.image = "#{img_opts[:name]}:latest"
+      ct.host = host
+      ct.image_options = img_opts
+      ct.state = :ready
+      return ct
+    end
+
+    def name
+      @name ||= "#{app_key}.#{type}.#{instance}"
+    end
+
+    def ports
+      @ports ||= begin
+        # parse ports
+        pts = []
+        image_options[:ports].each do |if_name, po|
+          host_port = po[:hport] || po[:cport]
+          ctnr_port = po[:cport]
+          unless po[:no_range] == true
+            host_port += instance
+          end
+          pts << {name: if_name, container: ctnr_port, host: host_port}
+        end unless image_options[:ports].nil?
+        pts
+      end
+    end
+
+    def env_data
+      ret = {
+        "name" => name,
+        "type" => type,
+        "instance" => instance,
+        "image" => image,
+        "host" => host.name,
+        "host_ip" => host.internal_ip,
+        "ports" => ports.collect{|p| p[:name].to_s}.join(",")
+
+      }
+      ports.each do |p|
+        ret["port_#{p[:name]}_c"] = p[:container]
+        ret["port_#{p[:name]}_h"] = p[:host]
+      end
+      return ret
+    end
+
+    def run_args(opts)
+      cname = self.name
+      cimg = "#{opts[:registry]}/#{self.image}"
+      fname = "--name #{cname}"
+      fports = self.ports.collect { |port|
+        cp = port[:container]
+        hp = port[:host]
+        "-p #{hp}:#{cp}"
+      }.join(" ")
+      fenv = self.env_data.collect do |key, val|
+        "--env CNTR_#{key.upcase}=#{val}"
+      end.join(" ")
+      return "#{fname} #{fports} #{fenv} #{cimg}"
+    end
 
   end
 

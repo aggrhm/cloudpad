@@ -1,16 +1,17 @@
 namespace :docker do
 
   task :load do
-    app_key = fetch(:app_key) || "new"
+    app_key = fetch(:app_key) || "app"
     fetch(:images).each do |type, opts|
       opts[:name] ||= "#{app_key}-#{type}"
     end
+    set :running_containers, []
   end
 
   ### BUILD
   desc "Rebuild docker images for all defined container types"
   task :build do
-    tf = ENV['images'].split(',') if ENV['images']
+    tf = ENV['type'].split(',') if ENV['type']
     images = fetch(:images)
     images.each do |type, opts|
       next if tf && !tf.include?(type.to_s)
@@ -31,22 +32,69 @@ namespace :docker do
   end
 
 
-  ### RUN
-  desc "Run docker containers on assigned hosts"
-  task :run do
-    cs = fetch(:containers)
-    on roles(:host) do |server|
-      host = server.properties.source
-      # get containers for host
-      cs.select{|c| host.has_id?(c['host']) }
+  ### ADD
+  desc "Add docker containers on most available host"
+  task :add do
+    type = ENV['type'].to_sym
+    count = ENV['count'] ? ENV['count'].to_i : 1
+    img_opts = fetch(:images)[type]
+    app_key = fetch(:app_key)
+    (1..count).each do
+      on next_available_server do |server|
+        host = server.properties.source
+        inst = next_available_container_instance(type)
+        ct = Cloudpad::Container.prepare({type: type, instance: inst, app_key: app_key}, img_opts, host)
+        execute "sudo docker run -d --env APP_KEY=#{app_key} #{ct.run_args({registry: fetch(:registry)})}"
+        fetch(:running_containers) << ct
+      end
     end
   end
 
 
-  ### STOP
+  ### REMOVE
   desc "Stop and remove all containers running on hosts for this application"
   task :remove do
-    # TODO: find all containers with the app key using -q and inspect them to check the image name
+    name = ENV['name']
+    # find host running this container
+    server = server_running_container(name)
+    if server.nil?
+      puts "Could not find a host running that instance.".red
+      next
+    end
+
+    on server do
+      execute "sudo docker stop #{name}"
+      execute "sudo docker rm #{name}"
+    end
+  end
+
+
+  desc "Check running containers"
+  task :check_running do
+    containers = []
+    on roles(:host) do |server|
+      host = server.properties.source
+      hd = capture("sudo docker inspect $(sudo docker ps -q)")
+      # parse container info
+      JSON.parse(hd).each do |cs|
+        cn = cs["Name"].gsub("/", "")
+        ip = cs["NetworkSettings"]["IPAddress"]
+        ak, type, inst = cn.split(".")
+        if ak == fetch(:app_key)
+          ci = Cloudpad::Container.new
+          # this is a container we manage, add it to list
+          ci.host = host
+          ci.name = cn
+          ci.type = type
+          ci.instance = inst.to_i
+          ci.ip_address = ip
+          containers << ci
+        end
+      end
+    end
+    puts "#{containers.length} containers running in #{fetch(:stage)} for this application.".green
+    puts containers.collect{|c| "- #{c.name} (on #{c.host.name} at #{c.ip_address}) : #{c.type}"}.join("\n").green
+    set :running_containers, containers
   end
 
 
@@ -112,11 +160,13 @@ namespace :docker do
   task :push_images do
     reg = fetch(:registry)
     next if reg.nil?
+    tf = ENV['type'].split(',') if ENV['type']
 
     images = fetch(:images)
     images.each do |type, opts|
-      sh "sudo docker tag #{opts[:name]} #{reg}/#{opts[:name]}"
-      sh "sudo docker push #{reg}/#{opts[:name]}"
+      next if tf && !tf.include?(type.to_s)
+      sh "sudo docker tag #{opts[:name]}:latest #{reg}/#{opts[:name]}:latest"
+      sh "sudo docker push #{reg}/#{opts[:name]}:latest"
     end
   end
 
@@ -145,6 +195,33 @@ namespace :docker do
   end
 
 
+  ### UPDATE_HOST_IMAGES
+  desc "Update host images from registry"
+  task :update_host_images do
+    reg = fetch(:registry)
+    app_key = fetch(:app_key)
+    tf = ENV['type'].split(',') if ENV['type']
+    on roles(:host) do
+      tf.each do |type|
+        img_opts = fetch(:images)[type.to_sym]
+        execute "sudo docker pull #{reg}/#{img_opts[:name]}:latest"
+      end
+    end
+  end
+
+  task :ssh do
+    name = ENV['name']
+    ci = container_with_name(name)
+    server = server_running_container(ci)
+
+    on server do |host|
+      upload!(File.join(context_path, 'keys', 'container'), "/tmp/container_key")
+      #execute "ssh -i /tmp/container_key root@#{ci.ip_address}"
+    end
+    sh "ssh -t #{server.user}@#{server.hostname} ssh -t -i /tmp/container_key root@#{ci.ip_address}"
+  end
+
+
   ### CLEAN_LOCAL
   desc "Cleanup images and containers"
   task :clean_local do
@@ -160,3 +237,8 @@ Capistrano::DSL.stages.each do |stage|
 end
 
 before "docker:build", "docker:update_repos"
+before "docker:add", "docker:update_host_images"
+before "docker:add", "docker:check_running"
+before "docker:remove", "docker:check_running"
+before "docker:ssh", "docker:check_running"
+after "docker:build", "docker:push_images"
