@@ -40,18 +40,19 @@ module Cloudpad
       return File.read(kp).gsub("\n", "")
     end
 
-    def next_available_server
+    def next_available_server(type)
       hm = {}
       servers = roles(:host)
+      img_opts = fetch(:images)[type]
       servers.each do |server|
-        hm[server.properties.source.name] = 0
+        host = server.properties.source
+        if img_opts[:hosts].nil? || host.has_id?(img_opts[:hosts])
+          hm[host.name] = host.status[:free_mem]
+        end
       end
 
-      fetch(:running_containers).each do |ci|
-        hm[ci["host"]] += 1
-      end
-
-      mv = hm.values.min
+      return nil if hm.empty?
+      mv = hm.values.max
       rn = hm.invert[mv]
       servers.select {|server|
         server.properties.source.name == rn
@@ -68,8 +69,12 @@ module Cloudpad
       return fetch(:running_containers).select{|c| c.name == name}.first
     end
 
+    def containers_on_host(host)
+      return fetch(:running_containers).select{|c| c.host == host}
+    end
+
     def next_available_container_instance(type)
-      taken = fetch(:running_containers).select{|c| c["type"] == type}.collect{|c| c["instance"]}.sort
+      taken = fetch(:running_containers).select{|c| c.type == type}.collect{|c| c.instance}.sort
       num = 1
       while(taken.include?(num)) do
         num += 1
@@ -77,11 +82,18 @@ module Cloudpad
       return num
     end
 
+    def dfi(inst, *args)
+      insts = fetch(:dockerfile_helpers)
+      insts[inst].call(*args)
+    end
+
     ## on host
 
     def process_running?(name)
-      ret = capture("ps -ef | grep #{name} | grep -v \"grep\"")
-      return ret.strip.length > 0
+      test("ps -ef | grep #{name} | grep -v \"grep\"")
+    end
+    def clean_shell(cmd)
+      sh "env -i /bin/bash -l -c \"#{cmd}\""
     end
 
   end

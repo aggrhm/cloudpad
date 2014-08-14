@@ -6,7 +6,22 @@ namespace :docker do
       opts[:name] ||= "#{app_key}-#{type}"
     end
     set :running_containers, []
+    set :dockerfile_helpers, {
+      install_gemfile: lambda {|gf|
+        has_lock = File.exists?( File.join(context_path, "#{gf}.lock") )
+        str = "ADD #{gf} /tmp/Gemfile\n"
+        str << "ADD #{gf}.lock /tmp/Gemfile.lock\n" if has_lock
+        str << "RUN bundle install #{has_lock ? "--frozen" : ""} --system --gemfile /tmp/Gemfile\n"
+        str
+      },
+      run: lambda {|script, *args|
+        base = File.basename(script)
+        str = "ADD #{script} /tmp/#{base}\n"
+        str << "RUN /tmp/#{base} #{args.join(" ")}\n"
+      }
+    }.merge(fetch(:dockerfile_helpers) || {})
   end
+
 
   ### BUILD
   desc "Rebuild docker images for all defined container types"
@@ -40,13 +55,20 @@ namespace :docker do
     img_opts = fetch(:images)[type]
     app_key = fetch(:app_key)
     (1..count).each do
-      on next_available_server do |server|
+      server = next_available_server(type)
+      if server.nil?
+        puts "No server available (check image host parameters)".red
+        break
+      end
+      on server do |server|
         host = server.properties.source
         inst = next_available_container_instance(type)
         ct = Cloudpad::Container.prepare({type: type, instance: inst, app_key: app_key}, img_opts, host)
-        execute "sudo docker run -d --env APP_KEY=#{app_key} #{ct.run_args({registry: fetch(:registry)})}"
-        fetch(:running_containers) << ct
+        execute ct.start_command(env)
       end
+      puts "Waiting for container to initialize...".yellow
+      sleep 3
+      Rake::Task["docker:check_running"].execute
     end
   end
 
@@ -56,25 +78,55 @@ namespace :docker do
   task :remove do
     name = ENV['name']
     # find host running this container
-    server = server_running_container(name)
+    ct = container_with_name(name)
+    server = server_running_container(ct)
     if server.nil?
       puts "Could not find a host running that instance.".red
       next
     end
 
     on server do
-      execute "sudo docker stop #{name}"
-      execute "sudo docker rm #{name}"
+      execute ct.stop_command(env)
     end
+    Rake::Task["docker:check_running"].execute
   end
 
 
+  ### UPDATE
+  desc "Update running containers"
+  task :update do
+    tf = ENV['type'].split(',') if ENV['type']
+    cts = fetch(:running_containers).select {|c|
+      tf.nil? || tf.include?(c.type.to_s)
+    }
+
+    on roles(:host) do |server|
+      host = server.properties.source
+      cts.each do |ct|
+        if ct.host == host
+          # stop container
+          execute ct.stop_command(env)
+          execute ct.start_command(env)
+        end
+      end
+    end
+    Rake::Task["docker:check_running"].execute
+  end
+
+
+  ### CHECK_RUNNING
   desc "Check running containers"
   task :check_running do
     containers = []
     on roles(:host) do |server|
       host = server.properties.source
-      hd = capture("sudo docker inspect $(sudo docker ps -q)")
+      host.status[:free_mem] = capture("free -m | grep Mem | awk '{print $4}'").to_i
+      ids = capture("sudo docker ps -q").strip
+      if ids.length > 0
+        hd = capture("sudo docker inspect $(sudo docker ps -q)")
+      else
+        hd = "[]"
+      end
       # parse container info
       JSON.parse(hd).each do |cs|
         cn = cs["Name"].gsub("/", "")
@@ -84,10 +136,14 @@ namespace :docker do
           ci = Cloudpad::Container.new
           # this is a container we manage, add it to list
           ci.host = host
+          ci.app_key = ak
+          ci.image_options = fetch(:images)[type.to_sym]
           ci.name = cn
-          ci.type = type
+          ci.type = type.to_sym
           ci.instance = inst.to_i
           ci.ip_address = ip
+          ci.image = "#{ci.image_options[:name]}:latest"
+          ci.state = :running
           containers << ci
         end
       end
@@ -95,6 +151,12 @@ namespace :docker do
     puts "#{containers.length} containers running in #{fetch(:stage)} for this application.".green
     puts containers.collect{|c| "- #{c.name} (on #{c.host.name} at #{c.ip_address}) : #{c.type}"}.join("\n").green
     set :running_containers, containers
+    # host info
+    puts "Host Summary:".green
+    fetch(:cloud).hosts.each do |host|
+      cs = containers_on_host(host)
+      puts "- #{host.name}: #{cs.length} containers running | #{host.status[:free_mem]} MB RAM free".green
+    end
   end
 
 
@@ -175,22 +237,44 @@ namespace :docker do
   desc "Update code for docker containers"
   task :update_repos do
     next if ENV['skip_update_repos'].to_i == 1
+    run_scripts = ENV['run_repo_scripts'].to_i == 1
     FileUtils.mkdir_p(repos_path)
     repos = fetch(:repos)
     repos.each do |name, opts|
       ru = opts[:url]
       rb = opts[:branch] || "master"
+      au = opts[:scripts] || []
       rp = File.join(repos_path, name.to_s)
       if !File.directory?(rp)
         # dir doesn't exist, clone it
         puts "Cloning #{name} repository...".yellow
         sh "git clone #{ru} #{rp}"
         sh "cd #{rp} && git checkout #{rb}"
+        is_new = true
       else
         puts "Updating #{name} repository...".yellow
         # dir already exists, do a checkout and pull
-        sh "cd #{rp} && git checkout #{rb} && git pull"
+        sh "cd #{rp} && git checkout #{rb} && git fetch origin #{rb}:refs/remotes/origin/#{rb}"
+        # if commits differ, need to merge and run update commands
+        local_rev = `cd #{rp} && git rev-parse --verify HEAD`
+        remote_rev = `cd #{rp} && git rev-parse --verify origin/#{rb}`
+        if local_rev != remote_rev
+          puts "Code updating...".yellow
+          sh "cd #{rp} && git merge origin/#{rb}"
+          is_new = true
+        else
+          puts "Code is up to date.".green
+          is_new = false
+        end
       end
+
+      if is_new || run_scripts
+        au.each do |cmd|
+          clean_shell "cd #{rp} && #{cmd}"
+        end
+      end
+
+
     end
   end
 
@@ -200,10 +284,12 @@ namespace :docker do
   task :update_host_images do
     reg = fetch(:registry)
     app_key = fetch(:app_key)
+    images = fetch(:images)
     tf = ENV['type'].split(',') if ENV['type']
+    img_types = tf ? tf : images.keys
     on roles(:host) do
-      tf.each do |type|
-        img_opts = fetch(:images)[type.to_sym]
+      img_types.each do |type|
+        img_opts = images[type.to_sym]
         execute "sudo docker pull #{reg}/#{img_opts[:name]}:latest"
       end
     end
@@ -237,8 +323,14 @@ Capistrano::DSL.stages.each do |stage|
 end
 
 before "docker:build", "docker:update_repos"
+after "docker:build", "docker:push_images"
+
 before "docker:add", "docker:update_host_images"
 before "docker:add", "docker:check_running"
+
 before "docker:remove", "docker:check_running"
+
+before "docker:update", "docker:check_running"
+before "docker:update", "docker:update_host_images"
+
 before "docker:ssh", "docker:check_running"
-after "docker:build", "docker:push_images"

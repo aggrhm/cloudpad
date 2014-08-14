@@ -137,6 +137,10 @@ module Cloudpad
       ([internal_ip, external_ip, name] & val).length > 0
     end
 
+    def status
+      @status ||= {}
+    end
+
   end
 
   class Container
@@ -193,9 +197,9 @@ module Cloudpad
       return ret
     end
 
-    def run_args(opts)
+    def run_args(env)
       cname = self.name
-      cimg = "#{opts[:registry]}/#{self.image}"
+      cimg = "#{env.fetch(:registry)}/#{self.image}"
       fname = "--name #{cname}"
       fports = self.ports.collect { |port|
         cp = port[:container]
@@ -206,6 +210,14 @@ module Cloudpad
         "--env CNTR_#{key.upcase}=#{val}"
       end.join(" ")
       return "#{fname} #{fports} #{fenv} #{cimg}"
+    end
+
+    def start_command(env)
+      "sudo docker run -d --env APP_KEY=#{app_key} #{run_args(env)}"
+    end
+
+    def stop_command(env)
+      "sudo docker stop #{name} && sudo docker rm #{name}"
     end
 
   end
