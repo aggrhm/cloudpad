@@ -1,6 +1,9 @@
 module Cloudpad
   module TaskUtils
 
+    def root_path
+      Dir.pwd
+    end
     def manifests_path
       File.join(Dir.pwd, "manifests")
     end

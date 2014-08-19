@@ -32,7 +32,7 @@ namespace :hosts do
   task :ensure_etcd do
     hosts = fetch(:cloud).hosts
     sidx = 0
-    on roles(:host), in: :sequence do |server|
+    on roles(:host), in: :sequence, wait: 5 do |server|
       host = server.properties.source
       within "~" do
         if !test("[ -d etcd ]")
@@ -45,10 +45,11 @@ namespace :hosts do
           leader_addr = "#{hosts.first.internal_ip}:7001"
           ip = host.internal_ip
           if host == hosts.first
-            execute "nohup ~/etcd/etcd --peer-addr #{ip}:7001 --addr #{ip}:4001 > etcd.log &"
+            peers_f = ""
           else
-            execute "nohup ~/etcd/etcd --peer-addr #{ip}:7001 --addr #{ip}:4001 --peers #{leader_addr} > etcd.log &"
+            peers_f = "--peers #{leader_addr}"
           end
+          execute "nohup ~/etcd/etcd --peer-addr #{ip}:7001 --peer-bind-addr 0.0.0.0:7001 --addr #{ip}:4001 --bind-addr 0.0.0.0:4001 #{peers_f} -f > etcd.log &"
         end
       end
       sidx += 1

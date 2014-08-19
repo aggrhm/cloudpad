@@ -14,6 +14,15 @@ namespace :docker do
         str << "RUN bundle install #{has_lock ? "--frozen" : ""} --system --gemfile /tmp/Gemfile\n"
         str
       },
+      install_repo: lambda {|repo, dest|
+        repo = repo.to_s
+        str = ""
+        if File.exists?( gf = File.join(context_path, "src", repo, "Gemfile") )
+          str << "#{dfi(:install_gemfile, "src/#{repo}/Gemfile")}\n"
+        end
+        str << "RUN mkdir #{dest} #{dest}/pids #{dest}/sockets #{dest}/log\n"
+        str << "ADD src/#{repo} #{dest}\n"
+      },
       run: lambda {|script, *args|
         base = File.basename(script)
         str = "ADD #{script} /tmp/#{base}\n"
@@ -77,16 +86,13 @@ namespace :docker do
   desc "Stop and remove all containers running on hosts for this application"
   task :remove do
     name = ENV['name']
-    # find host running this container
-    ct = container_with_name(name)
-    server = server_running_container(ct)
-    if server.nil?
-      puts "Could not find a host running that instance.".red
-      next
-    end
+    type = ENV['type']
 
-    on server do
-      execute ct.stop_command(env)
+    on roles(:host) do |server|
+      host = server.properties.source
+      containers_on_host(host).each do |ct|
+        execute ct.stop_command(env) if ( (type && ct.type == type.to_sym) || (name && ct.name == name) )
+      end
     end
     Rake::Task["docker:check_running"].execute
   end
@@ -304,7 +310,7 @@ namespace :docker do
       upload!(File.join(context_path, 'keys', 'container'), "/tmp/container_key")
       #execute "ssh -i /tmp/container_key root@#{ci.ip_address}"
     end
-    sh "ssh -t #{server.user}@#{server.hostname} ssh -t -i /tmp/container_key root@#{ci.ip_address}"
+    sh "ssh -t #{server.user}@#{server.hostname} ssh -t -i /tmp/container_key -o \\\"StrictHostKeyChecking no\\\" root@#{ci.ip_address}"
   end
 
 
