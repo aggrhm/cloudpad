@@ -179,6 +179,16 @@ module Cloudpad
       end
     end
 
+    def volumes
+      @volumes ||= begin
+        vols = []
+        image_options[:volumes].each do |name, vo|
+          vols << {name: name, container: vo[:cpath], host: "/volumes/#{name}.#{instance}"}
+        end unless image_options[:volumes].nil?
+        vols
+      end
+    end
+
     def env_data
       ret = {
         "name" => name,
@@ -206,10 +216,15 @@ module Cloudpad
         hp = port[:host]
         "-p #{hp}:#{cp}"
       }.join(" ")
+      fvols = self.volumes.collect{ |vol|
+        cp = vol[:container]
+        hp = vol[:host]
+        "-v #{hp}:#{cp}"
+      }.join(" ")
       fenv = self.env_data.collect do |key, val|
         "--env CNTR_#{key.upcase}=#{val}"
       end.join(" ")
-      return "#{fname} #{fports} #{fenv} #{cimg}"
+      return "#{fname} #{fports} #{fvols} #{fenv} #{cimg}"
     end
 
     def start_command(env)

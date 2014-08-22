@@ -43,18 +43,27 @@ module Cloudpad
       return File.read(kp).gsub("\n", "")
     end
 
-    def next_available_server(type)
+    def next_available_server(type, filt=nil)
       hm = {}
       servers = roles(:host)
       img_opts = fetch(:images)[type]
-      servers.each do |server|
-        host = server.properties.source
-        if img_opts[:hosts].nil? || host.has_id?(img_opts[:hosts])
-          hm[host.name] = host.status[:free_mem]
+      # filter hosts
+      hosts = servers.collect{|s| s.properties.source}.select{|host|
+        check = true
+        if img_opts[:hosts] && !host.has_id?(img_opts[:hosts])
+          check = false
         end
+        if filt && !host.has_id?(filt)
+          check = false
+        end
+        check
+      }
+      return nil if hosts.empty?
+
+      hosts.each do |host|
+        hm[host.name] = host.status[:free_mem]
       end
 
-      return nil if hm.empty?
       mv = hm.values.max
       rn = hm.invert[mv]
       servers.select {|server|

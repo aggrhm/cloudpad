@@ -23,5 +23,5 @@ Gem::Specification.new do |spec|
   spec.add_dependency "capistrano", "3.2.1"
   spec.add_dependency "colored"
   spec.add_dependency "faraday"
-  spec.add_dependency "activesupport"
+  spec.add_dependency "activesupport", "3.2.19"
 end
