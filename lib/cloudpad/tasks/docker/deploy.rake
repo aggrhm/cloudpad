@@ -6,7 +6,8 @@ namespace :docker do
     type = ENV['type'].to_sym
     count = ENV['count'] ? ENV['count'].to_i : 1
     filt = ENV['chost'] ? ENV['chost'].split(',') : nil
-    img_opts = fetch(:images)[type]
+    copts = fetch(:container_types)[type]
+    img_opts = fetch(:images)[copts[:image]]
     app_key = fetch(:app_key)
     (1..count).each do
       server = next_available_server(type, filt)
@@ -17,7 +18,7 @@ namespace :docker do
       on server do |server|
         host = server.properties.source
         inst = next_available_container_instance(type)
-        ct = Cloudpad::Container.prepare({type: type, instance: inst, app_key: app_key}, img_opts, host)
+        ct = Cloudpad::Container.prepare({type: type, instance: inst, app_key: app_key}, copts, img_opts, host)
         execute ct.start_command(env)
       end
       puts "Waiting for container to initialize...".yellow
@@ -94,12 +95,12 @@ namespace :docker do
           # this is a container we manage, add it to list
           ci.host = host
           ci.app_key = ak
-          ci.image_options = fetch(:images)[type.to_sym]
+          ci.options = fetch(:container_types)[type.to_sym]
+          ci.image_options = fetch(:images)[ci.options[:image]]
           ci.name = cn
           ci.type = type.to_sym
           ci.instance = inst.to_i
           ci.ip_address = ip
-          ci.image = "#{ci.image_options[:name]}:latest"
           ci.state = :running
           containers << ci
         end
@@ -127,10 +128,8 @@ namespace :docker do
     reg = fetch(:registry)
     app_key = fetch(:app_key)
     images = fetch(:images)
-    tf = ENV['type'].split(',') if ENV['type']
-    img_types = tf ? tf : images.keys
     on roles(:host) do
-      img_types.each do |type|
+      filtered_image_types.each do |type|
         img_opts = images[type.to_sym]
         execute "sudo docker pull #{reg}/#{img_opts[:name]}:latest"
       end

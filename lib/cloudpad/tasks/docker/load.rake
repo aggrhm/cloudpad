@@ -3,11 +3,17 @@ namespace :docker do
   task :load do
     app_key = fetch(:app_key) || set(:app_key, "app")
     set(:images, {}) if fetch(:images).nil?
+    set(:container_types, {}) if fetch(:container_types).nil?
     set(:repos, {}) if fetch(:repos).nil?
+    set(:services, {}) if fetch(:services).nil?
 
     fetch(:images).each do |type, opts|
       opts[:name] ||= "#{app_key}-#{type}"
     end
+    fetch(:container_types).each do |type, opts|
+      opts[:image] ||= type.to_sym
+    end
+
     set :running_containers, []
     set :dockerfile_helpers, {
       install_gemfile: lambda {|gf|
@@ -46,9 +52,12 @@ namespace :docker do
       },
       install_image_services: lambda {
         str = ""
+        image_opts[:available_services].each do |svc|
+          str << "ADD services/#{svc}.sh /root/services/#{svc}.sh\n"
+        end unless image_opts[:available_services].nil?
         image_opts[:services].each do |svc|
           str << "ADD services/#{svc}.sh /etc/service/#{svc}/run\n"
-        end
+        end unless image_opts[:services].nil?
         str
       },
       run: lambda {|script, *args|
@@ -57,6 +66,16 @@ namespace :docker do
         str << "RUN /tmp/#{base} #{args.join(" ")}\n"
       }
     }.merge(fetch(:dockerfile_helpers) || {})
+
+    if ENV['group']
+      grs = ENV['group'].split(',').collect(&:to_sym)
+      types = fetch(:container_types).select{|type, opts|
+        opts[:groups] && !(opts[:groups] & grs).empty?
+      }.keys
+
+      ENV['type'] = types.collect(&:to_s).join(",")
+      puts "Processing types: #{ENV['type']}...".yellow
+    end
   end
 
 end

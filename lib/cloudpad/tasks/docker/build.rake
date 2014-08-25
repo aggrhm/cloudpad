@@ -47,14 +47,26 @@ namespace :docker do
   ### BUILD
   desc "Rebuild docker images for all defined container types"
   task :build do
-    tf = ENV['type'].split(',') if ENV['type']
     images = fetch(:images)
+    services = fetch(:services)
     puts "No images to build".red if images.nil? || images.empty?
 
-    images.each do |type, opts|
-      next if tf && !tf.include?(type.to_s)
-      puts "Building #{type} container...".yellow
+    filtered_image_types.each do |type|
+      opts = images[type]
+      puts "Building #{type} image...".yellow
       set :building_image, type
+
+      # write service files
+      opts[:services].each do |svc|
+        cmd = services[svc.to_sym]
+        raise "Service not found!" if cmd.nil?
+        ofp = File.join(context_path, 'services', "#{svc}.sh")
+        ostr = "#!/bin/bash\n#{cmd}"
+        if !File.exists?(ofp) || ostr != File.read(ofp)
+          File.write(ofp, ostr)
+          File.chmod(0755, ofp)
+        end
+      end unless opts[:services].nil?
 
       # write dockerfile to context
       mt = opts[:manifest] || type
@@ -74,11 +86,10 @@ namespace :docker do
   task :push_images do
     reg = fetch(:registry)
     next if reg.nil?
-    tf = ENV['type'].split(',') if ENV['type']
 
     images = fetch(:images)
-    images.each do |type, opts|
-      next if tf && !tf.include?(type.to_s)
+    filtered_image_types.each do |type|
+      opts = images[type]
       sh "sudo docker tag #{opts[:name]}:latest #{reg}/#{opts[:name]}:latest"
       sh "sudo docker push #{reg}/#{opts[:name]}:latest"
     end

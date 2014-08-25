@@ -46,7 +46,7 @@ module Cloudpad
     def next_available_server(type, filt=nil)
       hm = {}
       servers = roles(:host)
-      img_opts = fetch(:images)[type]
+      img_opts = fetch(:container_types)[type]
       # filter hosts
       hosts = servers.collect{|s| s.properties.source}.select{|host|
         check = true
@@ -97,6 +97,18 @@ module Cloudpad
     def dfi(inst, *args)
       insts = fetch(:dockerfile_helpers)
       insts[inst].call(*args)
+    end
+
+    def filtered_container_types
+      cts = fetch(:container_types)
+      return cts.keys if ENV['type'].nil?
+      tf = ENV['type'].split(',').collect(&:to_sym)
+    end
+
+    def filtered_image_types
+      ims = fetch(:images)
+      cts = fetch(:container_types)
+      return filtered_container_types.collect{|t| cts[t][:image]}.uniq
     end
 
     ## on host

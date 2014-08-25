@@ -145,15 +145,15 @@ module Cloudpad
 
   class Container
 
-    attr_accessor :host, :name, :instance, :type, :ports, :image_options, :app_key, :image, :state, :status, :ip_address
+    attr_accessor :host, :name, :instance, :type, :ports, :options, :image_options, :app_key, :state, :status, :ip_address
 
-    def self.prepare(params, img_opts, host)
+    def self.prepare(params, copts, img_opts, host)
       ct = self.new
       ct.type = params[:type]
       ct.instance = params[:instance]
       ct.app_key = params[:app_key]
-      ct.image = "#{img_opts[:name]}:latest"
       ct.host = host
+      ct.options = copts
       ct.image_options = img_opts
       ct.state = :ready
       return ct
@@ -163,18 +163,22 @@ module Cloudpad
       @name ||= "#{app_key}.#{type}.#{instance}"
     end
 
+    def image_name
+      "#{self.image_options[:name]}:latest"
+    end
+
     def ports
       @ports ||= begin
         # parse ports
         pts = []
-        image_options[:ports].each do |if_name, po|
+        self.options[:ports].each do |if_name, po|
           host_port = po[:hport] || po[:cport]
           ctnr_port = po[:cport]
           unless po[:no_range] == true
             host_port += instance
           end
           pts << {name: if_name, container: ctnr_port, host: host_port}
-        end unless image_options[:ports].nil?
+        end unless self.options[:ports].nil?
         pts
       end
     end
@@ -182,9 +186,9 @@ module Cloudpad
     def volumes
       @volumes ||= begin
         vols = []
-        image_options[:volumes].each do |name, vo|
+        self.options[:volumes].each do |name, vo|
           vols << {name: name, container: vo[:cpath], host: "/volumes/#{name}.#{instance}"}
-        end unless image_options[:volumes].nil?
+        end unless self.options[:volumes].nil?
         vols
       end
     end
@@ -194,11 +198,11 @@ module Cloudpad
         "name" => name,
         "type" => type,
         "instance" => instance,
-        "image" => image,
+        "image" => image_name,
         "host" => host.name,
         "host_ip" => host.internal_ip,
-        "ports" => ports.collect{|p| p[:name].to_s}.join(",")
-
+        "ports" => ports.collect{|p| p[:name].to_s}.join(","),
+        "services" => options[:services].join(",")
       }
       ports.each do |p|
         ret["port_#{p[:name]}_c"] = p[:container]
@@ -209,7 +213,7 @@ module Cloudpad
 
     def run_args(env)
       cname = self.name
-      cimg = "#{env.fetch(:registry)}/#{self.image}"
+      cimg = "#{env.fetch(:registry)}/#{self.image_name}"
       fname = "--name #{cname}"
       fports = self.ports.collect { |port|
         cp = port[:container]
