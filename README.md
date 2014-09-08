@@ -93,6 +93,8 @@ set :app_key, 'ctl'
 
 ### Images Options
 
+The `images` hash defines the configuration for all the docker images defined for this application.
+
 ```ruby
 set :images, {
 	api: {
@@ -107,13 +109,46 @@ set :images, {
 }
 ```
 
-The `images` hash defines the configuration for all the docker images defined for this application.
 | Param				| Expected Value	| Notes					|
 | ---					| ---							| ---						|
 | manifest		|	string					|	Name of manifest to use (found in manifests directory)
 | repos				| Hash						| Name of repository to use (specified by symbol) with the value pointing to the path the repository should be stored to within the container
 | available_services | Array		| Array of services that should be installed to the docker container, but not enabled (will be enabled selectively using the init script and environment variables)
 | services		| Array						| Array of services to be installed in the container and enabled
+
+### Container Type Options
+
+The `container_types` option defines the configuration for all the docker container types for this application.
+
+```ruby
+set :container_types, {
+  api: {
+    groups: [:api],
+    image: :api,
+    services: ['unicorn', 'nginx', 'heartbeat', 'app_reporter'],
+    ports: { :app => {cport: 8080, hport: 8080} } # range implied
+  },
+  job: {
+    groups: [:api],
+    image: :api,
+    services: ['job_processor', 'heartbeat', 'app_reporter']
+  },
+	proxy: {
+		groups: [:proxy],
+		ports: {proxy: {cport: 80, no_range: true} },
+		hosts: ["sfa-host1"]
+	}
+}
+```
+
+| Param				| Expected Value	| Notes					|
+| ---					| ---							| ---						|
+| group				|	Array						|	Array of symbols (useful for deployment)
+| image				|	Symbol					|	Name of image to build container on top of
+| services		|	Array						|	Array of service names to enable during container init
+| ports				|	Hash						|	cport: container port (symbol)<br>hport: host port<br>no_range: if true, don't increment host port number by container instance number
+| volumes			|	Hash						| cpath: container path to mount port
+
 
 ## Usage
 
