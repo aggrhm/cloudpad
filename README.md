@@ -182,6 +182,7 @@ set :services, {
 	app_cron: "cd /app && bundle exec script/cron -D -e $RACK_ENV start",
 	job_reporter: "cd /app && bundle exec script/job_processor -D -e $RACK_ENV start"
 }
+```
 
 ## Usage
 
