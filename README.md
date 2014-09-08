@@ -40,6 +40,7 @@ Update your Capfile:
 
     require 'capistrano/setup'
     # require 'capistrano/deploy' # comment this line out
+
     require 'cloudpad'
     require 'cloudpad/starter'
 
@@ -50,7 +51,7 @@ Now install the starter files:
 Create your configuration file for deployment:
 
     $ mkdir config
-		$ touch config/deploy.rb
+    $ touch config/deploy.rb
 
 Define your hosts for your cloud:
 
@@ -59,11 +60,11 @@ Define your hosts for your cloud:
     ---
     hosts:
     - internal_ip: 10.6.3.20
-			name: sfa-host1
-			roles:
+    	name: sfa-host1
+    	roles:
     	- host
     	provider: manual
-			user: ubuntu
+    	user: ubuntu
     	os: ubuntu
     containers: []
 
@@ -82,9 +83,9 @@ set :app_key, 'ctl'
 
 | Param				| Expected Value	| Notes					|
 | ---					| ---							| ---						|
-| application	|	string					|	
-| app_key			|	string					|	Short string prepended to docker container names|
-| registry		|	ip address			|	IP of docker registry|
+| application	|	String					|	
+| app_key			|	String					|	Short string prepended to docker container names|
+| registry		|	String					|	IP of docker registry|
 | log_level		| :debug, :info		| :info recommended					
 |	images			| Hash						| Image configuration (see section)
 | container_types | Hash				| Container type configuration (see section)
@@ -111,7 +112,7 @@ set :images, {
 
 | Param				| Expected Value	| Notes					|
 | ---					| ---							| ---						|
-| manifest		|	string					|	Name of manifest to use (found in manifests directory)
+| manifest		|	String					|	Name of manifest to use (found in manifests directory)
 | repos				| Hash						| Name of repository to use (specified by symbol) with the value pointing to the path the repository should be stored to within the container
 | available_services | Array		| Array of services that should be installed to the docker container, but not enabled (will be enabled selectively using the init script and environment variables)
 | services		| Array						| Array of services to be installed in the container and enabled
@@ -149,17 +150,96 @@ set :container_types, {
 | ports				|	Hash						|	cport: container port (symbol)<br>hport: host port<br>no_range: if true, don't increment host port number by container instance number
 | volumes			|	Hash						| cpath: container path to mount port
 
+### Repository Options
+
+The `repos` option defines the configuration for all app repositories included in the docker images.
+
+```ruby
+set :repos, {
+	api: {
+		url: 'git@github.com:jsmith/todolist_api.git',
+		branch: 'master',
+		scripts: [
+			"bundle install --frozen --without development test",
+			"bundle exec rake assets:precompile"
+		]
+	}
+}
+```
+
+| Param				| Expected Value	| Notes					|
+| ---					| ---							| ---						|
+| url					|	String					|	Path to clone git repository
+| branch			|	String					|	Branch to deploy to image
+| scripts			|	Array						|	Array of commands to execute on repository after an update is performed
+
+### Services
+
+The `services` option defines services that can be added to docker images.
+
+```ruby
+set :services, {
+	app_cron: "cd /app && bundle exec script/cron -D -e $RACK_ENV start",
+	job_reporter: "cd /app && bundle exec script/job_processor -D -e $RACK_ENV start"
+}
 
 ## Usage
 
 Running a command in cloudpad will generally take the following form:
 
-		$ bundle exec cap <stage> <command> <option flags>
-		$ bundle exec cap production docker:add type=job
+    $ bundle exec cap <stage> <command> <option flags>
+    $ bundle exec cap production docker:add type=job
 
-### docker:build
+### Building Images
 
-Builds a docker container
+#### docker:build
+
+Builds the docker images specified by your configuration, tags them as `latest`, and pushes them to the private registry. If a type or group is specified, only images belonging to that type/group will be built and pushed. If no type or group is specified, all images are built and pushed.
+
+    $ bundle exec cap production docker:build [type=<type>] [group=<group>]
+
+
+### Deploying Images
+
+#### docker:add
+
+Adds a new running container with the container type specified to an eligible host.
+
+    $ bundle exec cap production docker:add type=<type> [count=<count>]
+
+#### docker:remove
+
+Removes a running container with the specified name or type.
+
+    $ bundle exec cap production docker:remove type=<type>
+    $ bundle exec cap production docker:remove name=<name>
+
+#### docker:update
+
+Stop all running containers and start again with latest image (on same hosts). Useful for code updates after a build.
+
+    $ bundle exec cap production docker:update [type=<type>] [group=<group>]
+
+#### docker:deploy
+
+Build and update, in a single command.
+
+    $ bundle exec cap production docker:update [type=<type>] [group=<group>]
+
+
+### Accessing Images
+
+#### docker:list
+
+List all the running containers on all hosts.
+
+    $ bundle exec cap production docker:list
+
+#### docker:ssh
+
+SSH into a container with the specified name.
+
+    $ bundle exec cap production docker:ssh name=<name>
 
 ## Tips
 
