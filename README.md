@@ -20,60 +20,65 @@ Cloudpad provides conventions for building containers with defined roles, and al
 
 Create a directory and add a Gemfile:
 
-		$ mkdir app-deploy
-		$ cd app-deploy
-		$ touch Gemfile
+    $ mkdir app-deploy
+    $ cd app-deploy
+    $ touch Gemfile
 
 Add this line to your application's Gemfile:
 
     gem 'cloudpad', :github => 'agquick/cloudpad'
-		gem 'cloudpad-starter', :github => 'agquick/cloudpad-starter' # if you want cloudpad base dockerfiles, etc. This is optional.
+    gem 'cloudpad-starter', :github => 'agquick/cloudpad-starter' # if you want cloudpad base dockerfiles, etc. This is optional.
 
 And then execute:
 
     $ bundle install
-		$ bundle exec cap install
+    $ bundle exec cap install
 
 Update your Capfile:
 
-		# Capfile
+    # Capfile
 
-		require 'capistrano/setup'
-		# require 'capistrano/deploy' # comment this line out
-		require 'cloudpad'
-		require 'cloudpad/starter'
+    require 'capistrano/setup'
+    # require 'capistrano/deploy' # comment this line out
+    require 'cloudpad'
+    require 'cloudpad/starter'
 
 Now install the starter files:
 
-		$ bundle exec cap starter:install:all
+    $ bundle exec cap starter:install:all
 
 Create your configuration file for deployment:
 
-		$ mkdir config
+    $ mkdir config
 		$ touch config/deploy.rb
 
 Define your hosts for your cloud:
 
-		# config/cloud/production.yml
+    # config/cloud/production.yml
 
-		---
-		hosts:
-		- internal_ip: 10.6.3.20
+    ---
+    hosts:
+    - internal_ip: 10.6.3.20
 			name: sfa-host1
 			roles:
-			- host
-			provider: manual
+    	- host
+    	provider: manual
 			user: ubuntu
-			os: ubuntu
-		containers: []
+    	os: ubuntu
+    containers: []
 
 Now you're ready to build your configuration file.
 
 ## Configuration
 
-Before you can execute any commands, you need to specify your configuration options. Most of your configuration can be specified in *config/deploy.rb*. Any stage-specific configuration should be specified in *config/deploy/<stage>.rb*
+Before you can execute any commands, you need to specify your configuration options. Most of your configuration can be specified in *config/deploy.rb*. Any stage-specific configuration should be specified in *config/deploy/[stage].rb*
 
 ### Global Options
+
+```ruby
+set :application, "CoolTodoList"
+set :app_key, 'ctl'
+```
 
 | Param				| Expected Value	| Notes					|
 | ---					| ---							| ---						|
@@ -85,6 +90,30 @@ Before you can execute any commands, you need to specify your configuration opti
 | container_types | Hash				| Container type configuration (see section)
 | repos				| Hash						| Repository configuration (see section)
 | services		|	Hash						| Services configuration (see section)
+
+### Images Options
+
+```ruby
+set :images, {
+	api: {
+		manifest: 'base-app',
+		repos: {api: '/app'},
+		available_services: ['unicorn', 'nginx'],
+	},
+	proxy: {
+		manifest: 'base-proxy',
+		services: ['haproxy']
+	}
+}
+```
+
+The `images` hash defines the configuration for all the docker images defined for this application.
+| Param				| Expected Value	| Notes					|
+| ---					| ---							| ---						|
+| manifest		|	string					|	Name of manifest to use (found in manifests directory)
+| repos				| Hash						| Name of repository to use (specified by symbol) with the value pointing to the path the repository should be stored to within the container
+| available_services | Array		| Array of services that should be installed to the docker container, but not enabled (will be enabled selectively using the init script and environment variables)
+| services		| Array						| Array of services to be installed in the container and enabled
 
 ## Usage
 
