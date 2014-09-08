@@ -202,8 +202,8 @@ module Cloudpad
         "host" => host.name,
         "host_ip" => host.internal_ip,
         "ports" => ports.collect{|p| p[:name].to_s}.join(","),
-        "services" => options[:services].join(",")
       }
+      ret["services"] = options[:services].join(",") if options[:services]
       ports.each do |p|
         ret["port_#{p[:name]}_c"] = p[:container]
         ret["port_#{p[:name]}_h"] = p[:host]

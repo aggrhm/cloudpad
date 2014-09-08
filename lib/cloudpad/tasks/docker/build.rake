@@ -57,7 +57,8 @@ namespace :docker do
       set :building_image, type
 
       # write service files
-      opts[:services].each do |svc|
+      svs = (opts[:services] || []) | (opts[:available_services] || [])
+      svs.each do |svc|
         cmd = services[svc.to_sym]
         raise "Service not found!" if cmd.nil?
         ofp = File.join(context_path, 'services', "#{svc}.sh")
@@ -66,7 +67,7 @@ namespace :docker do
           File.write(ofp, ostr)
           File.chmod(0755, ofp)
         end
-      end unless opts[:services].nil?
+      end
 
       # write dockerfile to context
       mt = opts[:manifest] || type
