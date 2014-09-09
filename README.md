@@ -72,11 +72,11 @@ Now you're ready to build your configuration file.
 
 ## Configuration
 
-See the [Configuration wiki page](https://github.com/agquick/cloudpad/wiki/Configuration)
+See the [Configuration wiki page](https://github.com/agquick/cloudpad/blob/master/docs/Configuration.md)
 
 ## Usage
 
-See the [Usage wiki page](https://github.com/agquick/cloudpad/wiki/Usage)
+See the [Usage wiki page](https://github.com/agquick/cloudpad/blob/master/docs/Usage.md)
 
 ## Tips
 
