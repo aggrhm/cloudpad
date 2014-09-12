@@ -44,31 +44,25 @@ Update your Capfile:
     require 'cloudpad'
     require 'cloudpad/starter'
 
+Delete everything in `config/deploy.rb`
+
+    # config/deploy.rb
+    # This is your configuration file. Let's make it empty for now...
+
 Now install the starter files:
 
-    $ bundle exec cap starter:install:all
+    $ bundle exec cap production starter:install:all
 
-Create your configuration file for deployment:
+Add your hosts for your cloud:
 
-    $ mkdir config
-    $ touch config/deploy.rb
+    $ bundle exec cap production hosts:add
+		# follow the prompts to enter the information for your host.
 
-Define your hosts for your cloud:
+Now you are ready to:
 
-    # config/cloud/production.yml
-
-    ---
-    hosts:
-    - internal_ip: 10.6.3.20
-    	name: sfa-host1
-    	roles:
-    	- host
-    	provider: manual
-    	user: ubuntu
-    	os: ubuntu
-    containers: []
-
-Now you're ready to build your configuration file.
+	1. Build your configuration file (see Configuration documentation)
+	2. Provision your hosts (see Usage documentation)
+	3. Build and deploy your images and containers (see Usage documentation)
 
 ## Configuration
 
