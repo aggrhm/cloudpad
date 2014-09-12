@@ -55,14 +55,14 @@ Now install the starter files:
 
 Add your hosts for your cloud:
 
-    $ bundle exec cap production hosts:add
-		# follow the prompts to enter the information for your host.
+	$ bundle exec cap production hosts:add
+	# follow the prompts to enter the information for your host.
 
 Now you are ready to:
 
-	1. Build your configuration file (see Configuration documentation)
-	2. Provision your hosts (see Usage documentation)
-	3. Build and deploy your images and containers (see Usage documentation)
+1. Build your configuration file (see Configuration documentation)
+2. Provision your hosts (see Usage documentation)
+3. Build and deploy your images and containers (see Usage documentation)
 
 ## Configuration
 
