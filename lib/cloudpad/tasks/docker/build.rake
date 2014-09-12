@@ -7,7 +7,9 @@ namespace :docker do
     run_scripts = ENV['run_repo_scripts'].to_i == 1
     FileUtils.mkdir_p(repos_path)
     repos = fetch(:repos)
-    repos.each do |name, opts|
+    filtered_repo_names.each do |name|
+      opts = repos[name]
+      next if opts.nil? # this is not a managed repository
       ru = opts[:url]
       rb = opts[:branch] || "master"
       au = opts[:scripts] || []
@@ -57,6 +59,7 @@ namespace :docker do
       set :building_image, type
 
       # write service files
+      FileUtils.mkdir_p( File.join(context_path, 'services') )
       svs = (opts[:services] || []) | (opts[:available_services] || [])
       svs.each do |svc|
         cmd = services[svc.to_sym]

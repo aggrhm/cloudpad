@@ -17,9 +17,15 @@ module Cloudpad
       File.join(context_path, "src")
     end
 
-    def prompt(question)
-      $stdout.print "> #{question}: ".yellow
-      return $stdin.gets.chomp
+    def prompt(question, default=nil)
+      def_str = default ? " [#{default}] " : " "
+      $stdout.print "> #{question}#{def_str}: ".yellow
+      ret = $stdin.gets.chomp.strip
+      if ret.length == 0
+        return default
+      else
+        return ret
+      end
     end
 
     def build_template_file(name)
@@ -109,6 +115,19 @@ module Cloudpad
       ims = fetch(:images)
       cts = fetch(:container_types)
       return filtered_container_types.collect{|t| cts[t][:image]}.uniq
+    end
+
+    def filtered_repo_names
+      repos = fetch(:repos)
+      images = fetch(:images)
+      return filtered_image_types.collect{|t| 
+        rs = images[t][:repos]
+        if rs
+          rs.keys
+        else
+          []
+        end
+      }.flatten.uniq
     end
 
     ## on host

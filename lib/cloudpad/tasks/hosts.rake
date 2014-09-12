@@ -14,6 +14,20 @@ namespace :hosts do
     end
   end
 
+  task :add do
+    cloud = fetch(:cloud)
+    host = Cloudpad::Host.new
+    host.name = prompt("Enter host name")
+    host.external_ip = prompt("Enter external ip")
+    host.internal_ip = prompt("Enter internal ip")
+    host.roles = [:host]
+    host.user = prompt("Enter login user", "ubuntu")
+    host.os = prompt("Enter host os", "ubuntu")
+    cloud.hosts << host
+    cloud.update_cache
+    puts "Host #{host.name} added."
+  end
+
   task :provision do
     invoke "hosts:ensure_docker"
     invoke "hosts:ensure_etcd"

@@ -94,7 +94,7 @@ module Cloudpad
   ## CLOUDELEMENT
   class CloudElement
 
-    def initialize(opts)
+    def initialize(opts={})
       @data = opts.stringify_keys
       #puts self.methods.inspect
       #puts "#{self.respond_to?(:roles)} - #{@data["roles"]}"
@@ -114,7 +114,7 @@ module Cloudpad
 
     def method_missing(name, *args)
       if name.to_s.ends_with?("=")
-        @data[name.to_s] = args[0]
+        @data[name.to_s[0..-2]] = args[0]
       else
         @data[name.to_s]
       end
