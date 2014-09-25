@@ -56,14 +56,9 @@ If you are using any extensions, you can run the relevant commands now. For exam
 $ bundle exec cap production starter:install:all
 ```
 
-## Adding Hosts
+## Directory Structure
 
-Cloudpad keeps a local registry of all hosts that you deploy your containers to. To add your hosts for your cloud, run the following command:
-
-```sh
-$ bundle exec cap production hosts:add
-# follow the prompts to enter the information for your host.
-```
+More coming soon...
 
 Now you are ready to:
 
