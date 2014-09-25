@@ -1,4 +1,4 @@
-# Configuration
+# Configuration Guide
 
 Your central place for all configuration is in `config/deploy.rb`. For stage specific configuration, you may override certain params in `config/[stage]/deploy.rb`.
 

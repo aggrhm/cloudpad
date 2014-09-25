@@ -50,7 +50,18 @@ Delete everything in `config/deploy.rb`
 
 ## Directory Structure
 
-More coming soon...
+The directory structure is integral to how Cloudpad works. Below is an outline of the relevant directories and files. Extensions may add more directories or files to these locations.
+
+* `config/` - where all configuration is stored
+	* `deploy.rb`	- global configuration
+	* `deploy/`	- config for stages
+		* `production.rb`	- configuration overrides for production environment
+
+* `context/` - context for building images
+	* `src/` - holds all cached repositories
+	* `services/` - compile location for defined container services
+	
+* `manifests/` - directory for holding all Dockerfile manifests
 
 
 ## Installing Extension Files
