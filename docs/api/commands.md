@@ -7,7 +7,7 @@ Running a command in Cloudpad will generally take the following form:
 
 ## Building Images
 
-#### docker:build
+### docker:build
 
 Builds the docker images specified by your configuration, tags them as `latest`, and pushes them to the private registry. If a type or group is specified, only images belonging to that type/group will be built and pushed. If no type or group is specified, all images are built and pushed.
 
@@ -16,26 +16,26 @@ Builds the docker images specified by your configuration, tags them as `latest`,
 
 ## Deploying Images
 
-#### docker:add
+### docker:add
 
 Adds a new running container with the container type specified to an eligible host.
 
     $ bundle exec cap production docker:add type=<type> [count=<count>]
 
-#### docker:remove
+### docker:remove
 
 Removes a running container with the specified name or type.
 
     $ bundle exec cap production docker:remove type=<type>
     $ bundle exec cap production docker:remove name=<name>
 
-#### docker:update
+### docker:update
 
 Stop all running containers and start again with latest image (on same hosts). Useful for code updates after a build.
 
     $ bundle exec cap production docker:update [type=<type>] [group=<group>]
 
-#### docker:deploy
+### docker:deploy
 
 Build and update, in a single command.
 
@@ -44,13 +44,13 @@ Build and update, in a single command.
 
 ## Accessing Images
 
-#### docker:list
+### docker:list
 
 List all the running containers on all hosts.
 
     $ bundle exec cap production docker:list
 
-#### docker:ssh
+### docker:ssh
 
 SSH into a container with the specified name.
 
@@ -59,7 +59,7 @@ SSH into a container with the specified name.
 
 ## Provisioning Hosts
 
-#### hosts:provision
+### hosts:provision
 
 Provisions all Ubuntu hosts to ensure docker and etcd are both installed and properly configured and running.
 

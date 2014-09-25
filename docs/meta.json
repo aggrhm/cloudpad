@@ -1,0 +1,4 @@
+{
+	'order': ['home', 'guides', 'api'],
+	'menu_titles': {'api': 'API'}
+}

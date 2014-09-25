@@ -1,16 +1,16 @@
-# Dockerfile Manifests
+# Defining Dockerfile Manifests
 
 The Dockerfile manifest specifies how a docker image is to be built. For all configuration options, see the [official Dockerfile documentation](https://docs.docker.com/reference/builder/)
 
-### Location
+## Location
 
 The Dockerfile manifest is specified in the `images` configuration hash using the `manifest` option. Cloudpad looks for a manifest in the `manifests` directory with the file name of `<name>.dockerfile`.
 
-### Using ERB
+## Using ERB
 
 By default, the manifest is an ERB file, meaning you can use ERB ruby tags to include Cloudpad configuration parameters.
 
-### DFI (Dockerfile Instruction)
+## DFI (Dockerfile Instruction)
 
 In order to reduce redundancy, Cloudpad includes a ERB-available command to run ruby commands directly within your dockerfile as it's being compiled to output dynamic commands. The command takes the format of:
 
@@ -31,7 +31,7 @@ set :dockerfile_helpers, {
 }
 ```
 
-### Example
+## Example
 
 ```ruby
 # vi:syntax=dockerfile
