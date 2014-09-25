@@ -24,3 +24,18 @@ Cloudpad provides conventions for building containers with defined roles, and al
 
 The principle purpose of using Capistrano is to provide for the remote execution of commands in an easy manner. Many of the guides for CoreOS assume commands are ran from one of the CoreOS hosts, which may not be optimal in all cases. Also, by using Capistrano, we can execute Docker deployment commands on non-CoreOS hosts.
 
+## Dependencies
+
+As of writing this the hosts that are part of Cloudpad must run the following. Everything other than the OS is taken care of by the provisioning process.
+
+* Ubuntu 14.04 LTS
+* Docker.io 
+* Etcd
+
+It is recommended that the images that you build be built on top of Phusion Base Image for full functionality, although this is not required.
+
+## Upcoming Features
+
+1. CoreOS and Fleet integration
+2. Better tagging of built and stored images for rollbacks
+3. Public registry support

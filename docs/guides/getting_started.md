@@ -74,7 +74,8 @@ $ bundle exec cap production starter:install:all
 
 Now you are ready to:
 
-1. Build your configuration file (see Configuration documentation)
-2. Provision your hosts (see Usage documentation)
-3. Build and deploy your images and containers (see Usage documentation)
+1. Add and provision your hosts
+2. Write your configuration file
+3. Build your images
+4. Deploy your containers
 
