@@ -2,7 +2,7 @@
 
 This guide will step you through setting up a new deployment application with Cloudpad.
 
-## Preparing Directory
+## Installing
 
 Create a directory and add a Gemfile:
 
@@ -48,6 +48,11 @@ Delete everything in `config/deploy.rb`
 # This is your configuration file. Let's make it empty for now...
 ```
 
+## Directory Structure
+
+More coming soon...
+
+
 ## Installing Extension Files
 
 If you are using any extensions, you can run the relevant commands now. For example, this will install the starter files:
@@ -55,10 +60,6 @@ If you are using any extensions, you can run the relevant commands now. For exam
 ```sh
 $ bundle exec cap production starter:install:all
 ```
-
-## Directory Structure
-
-More coming soon...
 
 Now you are ready to:
 

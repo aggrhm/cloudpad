@@ -27,7 +27,7 @@ val = fetch(:param_name)
 
 Some params are required, but you can (and should) add many of your own params to be used elsewhere in the app, like your Dockerfile manifests which support ERB.
 
-## Defining Application-Level Params
+## Application Params
 
 First you'll want to define some basic settings for your Application. See [Configuration][configuration] for all the options here. To get started, set some basics like:
 
@@ -37,7 +37,7 @@ set :app_key, 'tlp'							# will be prefixed to image and container names
 set :registry, '1.2.3.4:5000'		# the place you will store your docker images
 ```
 
-## Defining Your Images
+## Images
 
 ### Design
 
@@ -81,7 +81,7 @@ So you can see from our configuration, A `todo` and `mongo` image will be built.
 Also note the params `repos`, `available_services`, and `available_services`. These are commands used by the [Dockerfile Instructions][dfi].
 
 
-## Defining Your Containers
+## Containers
 
 ### Design
 
@@ -132,7 +132,7 @@ set :container_types, {
 As you can see, both the `todo_web` and `todo_job` container types are based on the `todo` image. For more on container type configuration, see the [Configuration API][configuration]. For more on launching and managing containers, see the [Managing Containers Guide][managing_containers].
 
 
-## Defining Your Repositories
+## Repositories
 
 Cloudpad comes with support for installing version-controlled files to an image. Once added, any `repo` that is referred to by an image is automatically updated before the image is built. Presently, Cloudpad only supports repos that are git-accessible.
 
@@ -152,7 +152,7 @@ set :repos, {
 Note that the branch and scripts can be specified to further tailor the updating of remote code.
 
 
-## Defining Your Container Services
+## Container Services
 
 As noted earlier, this applies to images based on the Phusion Base Image. The `services` param defines bash scripts that should be installed to `/etc/service/[service_name]/run`. Defining them here allows you to not have to create your own files, instead they are created and added to your context automatically.
 
