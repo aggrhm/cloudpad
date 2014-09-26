@@ -6,7 +6,7 @@
 
 Cloudpad is designed to be used in a repository strictly responsible for the deployment of code to a cluster of CoreOS or docker-capable machines. It will take you from source-controlled code to running containers across multiple hosts, while abstracting and reducing reduntant tasks.
 
-## Deployment Steps
+## Deployment Strategy
 
 When deploying containers with Cloudpad, you must complete the following steps:
 
