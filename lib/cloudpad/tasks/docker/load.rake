@@ -64,6 +64,9 @@ namespace :docker do
         base = File.basename(script)
         str = "ADD #{script} /tmp/#{base}\n"
         str << "RUN /tmp/#{base} #{args.join(" ")}\n"
+      },
+      install_container_key: lambda {
+        str = "RUN echo #{container_public_key} >> /root/.ssh/authorized_keys\n"
       }
     }.merge(fetch(:dockerfile_helpers) || {})
 
