@@ -23,12 +23,12 @@ namespace :docker do
       else
         puts "Updating #{name} repository...".yellow
         # dir already exists, do a checkout and pull
-        sh "cd #{rp} && git checkout #{rb} && git fetch origin #{rb}:refs/remotes/origin/#{rb}"
         # if commits differ, need to merge and run update commands
-        local_rev = `cd #{rp} && git rev-parse --verify HEAD`
-        remote_rev = `cd #{rp} && git rev-parse --verify origin/#{rb}`
+        local_rev = `cd #{rp} && git ls-remote --heads . #{rb}`
+        remote_rev = `cd #{rp} && git ls-remote --heads origin #{rb}`
         if local_rev != remote_rev
           puts "Code updating...".yellow
+          sh "cd #{rp} && git checkout #{rb} && git fetch origin #{rb}:refs/remotes/origin/#{rb}"
           sh "cd #{rp} && git merge origin/#{rb}"
           is_new = true
         else
@@ -92,9 +92,10 @@ namespace :docker do
     next if reg.nil?
 
     images = fetch(:images)
+    insecure = fetch(:insecure_registry)
     filtered_image_types.each do |type|
       opts = images[type]
-      sh "sudo docker tag #{opts[:name]}:latest #{reg}/#{opts[:name]}:latest"
+      sh "sudo docker tag -f #{opts[:name]}:latest #{reg}/#{opts[:name]}:latest"
       sh "sudo docker push #{reg}/#{opts[:name]}:latest"
     end
   end

@@ -6,6 +6,8 @@ namespace :docker do
     set(:container_types, {}) if fetch(:container_types).nil?
     set(:repos, {}) if fetch(:repos).nil?
     set(:services, {}) if fetch(:services).nil?
+    set(:docker_version, "1.2.0") if fetch(:docker_version).nil?
+    set(:insecure_registry, false) if fetch(:insecure_registry).nil?
 
     fetch(:images).each do |type, opts|
       opts[:name] ||= "#{app_key}-#{type}"

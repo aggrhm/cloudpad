@@ -35,11 +35,25 @@ namespace :hosts do
 
   task :ensure_docker do
     on roles(:host) do |host|
-      if !test("sudo which docker")
-        # docker not installed
-        info "Docker not installed, installing..."
-        execute "curl -sSL https://get.docker.io/ubuntu/ | sudo sh"
-      end
+      Cloudpad::Docker::Context.install_docker(self)
+    end
+  end
+
+  task :remove_docker do
+    on roles(:host) do |host|
+      Cloudpad::Docker::Context.remove_docker(self)
+    end
+  end
+
+  task :local_docker do
+    insecure = fetch(:insecure_registry)
+    registry = fetch(:registry)
+    insecure_flag = insecure ? "--insecure-registry #{registry}" : ""
+    run_locally do
+      # update docker config
+      replace_file_line("/etc/default/docker", "DOCKER_OPTS=", "DOCKER_OPTS='#{insecure_flag}'", {sudo: true})
+      # restart docker properly
+      execute "sudo service docker restart"
     end
   end
 

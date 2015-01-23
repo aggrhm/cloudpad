@@ -2,6 +2,39 @@ module Cloudpad
 
   module Docker
 
+    module Context
+
+      def self.install_docker(c)
+        ver_meta = c.docker_version_meta
+        insecure = c.fetch(:insecure_registry)
+        registry = c.fetch(:registry)
+        insecure_flag = insecure ? "--insecure-registry #{registry}" : ""
+
+        # install docker if needed
+        if !c.test("sudo which docker")
+          c.info "Docker not installed, installing..."
+          c.execute "sudo apt-get update"
+          c.execute "sudo apt-get install -y linux-image-extra-`uname -r` apt-transport-https"
+          c.execute "sudo sh -c \"wget -qO- https://get.docker.io/gpg | apt-key add -\""
+          c.execute "sudo sh -c \"echo deb http://get.docker.io/ubuntu docker main > /etc/apt/sources.list.d/docker.list\""
+          c.execute "sudo apt-get update"
+          c.execute "sudo apt-get install -y lxc-docker-#{ver_meta[:version]}"
+        end
+        if ver_meta[:major] > 1 || ver_meta[:minor] > 2
+          # update docker config
+          c.replace_file_line("/etc/default/docker", "DOCKER_OPTS=", "DOCKER_OPTS='#{insecure_flag}'", {sudo: true})
+          # restart docker properly
+          c.execute "sudo service docker restart"
+        end
+      end
+
+      def self.remove_docker(c)
+        c.execute "sudo apt-get -y purge lxc-docker-*"
+      end
+      
+
+    end
+
     def self.container_record(env, type, img_opts, inst_num, host)
       cr = {}
       app_key = env.fetch(:app_key)

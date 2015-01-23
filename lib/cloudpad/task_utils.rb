@@ -130,13 +130,38 @@ module Cloudpad
       }.flatten.uniq
     end
 
+    def docker_version_meta
+      ver = fetch(:docker_version)
+      vs = ver.split(".")
+      ret = {}
+      ret[:version] = ver
+      ret[:major] = vs[0].to_i
+      ret[:minor] = vs[1].to_i
+      ret[:patch] = vs[2].to_i
+      ret[:number] = ret[:major] * 1000000 + ret[:minor] * 1000 + ret[:patch]
+      return ret
+    end
+
     ## on host
 
     def process_running?(name)
       test("ps -ef | grep #{name} | grep -v \"grep\"")
     end
+
+    def replace_file_line(file, find_exp, rep, opts={sudo: false})
+      pfx = opts[:sudo] ? "sudo " : ""
+      bn = File.basename(file)
+      execute "#{pfx} cp -n #{file} ~/#{bn}.old"
+      # remove old line
+      execute "#{pfx} sed -i '/^#{find_exp}.*/d' #{file}"
+      execute "echo \"#{rep}\" | #{pfx} tee -a #{file}"
+    end
+
     def clean_shell(cmd)
-      sh "env -i /bin/bash -l -c \"#{cmd}\""
+      Bundler.with_clean_env do
+        #sh "env -i /bin/bash -l -c \"#{cmd}\""
+        sh cmd
+      end
     end
 
   end

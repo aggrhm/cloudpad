@@ -128,6 +128,7 @@ namespace :docker do
     reg = fetch(:registry)
     app_key = fetch(:app_key)
     images = fetch(:images)
+    insecure = fetch(:insecure_registry)
     on roles(:host) do
       filtered_image_types.each do |type|
         img_opts = images[type.to_sym]
