@@ -114,7 +114,11 @@ module Cloudpad
     def filtered_image_types
       ims = fetch(:images)
       cts = fetch(:container_types)
-      return filtered_container_types.collect{|t| cts[t][:image]}.uniq
+      if !(img_names = ENV['image']).nil?
+        return img_names.split(',').collect(&:to_sym)
+      else
+        return filtered_container_types.collect{|t| cts[t][:image]}.uniq
+      end
     end
 
     def filtered_repo_names
