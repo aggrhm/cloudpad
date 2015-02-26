@@ -33,11 +33,16 @@ namespace :docker do
   task :remove do
     name = ENV['name']
     type = ENV['type']
+    state = ENV['state']
 
     on roles(:host) do |server|
-      host = server.properties.source
-      containers_on_host(host).each do |ct|
-        execute ct.stop_command(env) if ( (type && ct.type == type.to_sym) || (name && ct.name == name) )
+      if state == "stopped"
+        execute "sudo docker rm $(sudo docker ps -a -q)"
+      else
+        host = server.properties.source
+        containers_on_host(host).each do |ct|
+          execute ct.stop_command(env) if ( (type && ct.type == type.to_sym) || (name && ct.name == name) )
+        end
       end
     end
     Rake::Task["docker:check_running"].execute
