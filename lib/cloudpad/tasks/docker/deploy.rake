@@ -149,7 +149,9 @@ namespace :docker do
     server = server_running_container(ci)
 
     on server do |host|
+      execute "rm -f /tmp/container_key"
       upload!(File.join(context_path, 'keys', 'container'), "/tmp/container_key")
+      execute "chmod 400 /tmp/container_key"
       #execute "ssh -i /tmp/container_key root@#{ci.ip_address}"
     end
     sh "ssh -t #{server.user}@#{server.hostname} ssh -t -i /tmp/container_key -o \\\"StrictHostKeyChecking no\\\" root@#{ci.ip_address}"
