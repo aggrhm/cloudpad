@@ -1,6 +1,10 @@
 module Cloudpad
   module TaskUtils
 
+    def define(key, &block)
+      set(key, block)
+    end
+
     def root_path
       Dir.pwd
     end

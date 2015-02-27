@@ -193,7 +193,7 @@ module Cloudpad
       end
     end
 
-    def env_data
+    def container_env_data
       ret = {
         "name" => name,
         "type" => type,
@@ -211,6 +211,10 @@ module Cloudpad
       return ret
     end
 
+    def env_data
+      options[:env] || {}
+    end
+
     def run_args(env)
       cname = self.name
       cimg = "#{env.fetch(:registry)}/#{self.image_name}"
@@ -225,10 +229,13 @@ module Cloudpad
         hp = vol[:host]
         "-v #{hp}:#{cp}"
       }.join(" ")
-      fenv = self.env_data.collect do |key, val|
+      fcenv = self.container_env_data.collect do |key, val|
         "--env CNTR_#{key.upcase}=#{val}"
       end.join(" ")
-      return "#{fname} #{fports} #{fvols} #{fenv} #{cimg}"
+      fenv = self.env_data.collect do |key, val|
+        "--env #{key}=#{val}"
+      end.join(" ")
+      return "#{fname} #{fports} #{fvols} #{fcenv} #{fenv} #{cimg}"
     end
 
     def start_command(env)
