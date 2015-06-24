@@ -23,16 +23,16 @@ namespace :docker do
       else
         # dir already exists, do a checkout and pull
         puts "Updating #{name} repository...".yellow
-        sh "cd #{rp} && git checkout #{rb}"
         # if commits differ, need to merge and run update commands
         local_rev = `cd #{rp} && git ls-remote --heads . #{rb}`
         remote_rev = `cd #{rp} && git ls-remote --heads origin #{rb}`
         if local_rev != remote_rev
           puts "Code updating...".yellow
           sh "cd #{rp} && git fetch origin #{rb}:refs/remotes/origin/#{rb}"
-          sh "cd #{rp} && git merge origin/#{rb}"
+          sh "cd #{rp} && git checkout #{rb} && git merge origin/#{rb}"
           is_new = true
         else
+          sh "cd #{rp} && git checkout #{rb}"
           puts "Code is up to date.".green
           is_new = false
         end
