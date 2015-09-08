@@ -187,7 +187,13 @@ module Cloudpad
       @volumes ||= begin
         vols = []
         self.options[:volumes].each do |name, vo|
-          vols << {name: name, container: vo[:cpath], host: "/volumes/#{name}.#{instance}"}
+          if vo[:cpath] && vo[:hpath]
+            vols << {name: name, container: vo[:cpath], host: vo[:hpath]}
+          elsif vo[:cpath]
+            vols << {name: name, container: vo[:cpath], host: "/volumes/#{name}.#{instance}"}
+          elsif vo[:hpath]
+            vols << {name: name, container: vo[:hpath], host: vo[:hpath]}
+          end
         end unless self.options[:volumes].nil?
         vols
       end

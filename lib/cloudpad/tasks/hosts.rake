@@ -87,17 +87,24 @@ namespace :hosts do
 
   task :ensure_nfs do
     shared_path = fetch(:nfs_shared_path)
+    if shared_path.nil?
+      next
+    end
     host_subnet = fetch(:host_subnet)
     deploy_ip = local_ip_address
 
     # install server locally
     run_locally do
       execute "sudo apt-get install -qy nfs-kernel-server"
-      execute "sudo mkdir #{shared_path}" unless test("[ -d #{shared_path} ]")
-      execute "echo #{shared_path} #{host_subnet}(rw,all_squash) | sudo tee /etc/exports > /dev/null"
+      if !test("[ -d #{shared_path} ]")
+        execute "sudo mkdir #{shared_path}" 
+        execute "sudo chmod a+w #{shared_path}"
+      end
+      execute "echo \"#{shared_path} #{host_subnet}(rw,all_squash)\" | sudo tee /etc/exports > /dev/null"
       execute "sudo service nfs-kernel-server restart"
     end
 
+    # mount path remotely
     on roles(:host) do
       if !test("mount -l | grep #{shared_path}")
         execute "sudo apt-get install -qy nfs-common"
