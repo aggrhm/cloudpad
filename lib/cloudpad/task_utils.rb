@@ -172,6 +172,10 @@ module Cloudpad
       end
     end
 
+    def local_ip_address(dev="eth0")
+      `ifconfig #{dev} | grep inet | awk '{print $2}' | sed 's/addr://'`.strip
+    end
+
   end
 end
 

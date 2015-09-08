@@ -8,6 +8,8 @@ namespace :docker do
     set(:services, {}) if fetch(:services).nil?
     set(:docker_version, "1.2.0") if fetch(:docker_version).nil?
     set(:insecure_registry, false) if fetch(:insecure_registry).nil?
+    set(:nfs_shared_path, "/shared") if fetch(:nfs_shared_path).nil?
+    set(:host_subnet, "0.0.0.0/0") if fetch(:host_subnet).nil?
 
     fetch(:images).each do |type, opts|
       opts[:name] ||= "#{app_key}-#{type}"

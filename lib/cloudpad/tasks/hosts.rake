@@ -31,6 +31,7 @@ namespace :hosts do
   task :provision do
     invoke "hosts:ensure_docker"
     invoke "hosts:ensure_etcd"
+    invoke "hosts:ensure_nfs"
   end
 
   task :ensure_docker do
@@ -82,6 +83,29 @@ namespace :hosts do
       end
       sidx += 1
     end
+  end
+
+  task :ensure_nfs do
+    shared_path = fetch(:nfs_shared_path)
+    host_subnet = fetch(:host_subnet)
+    deploy_ip = local_ip_address
+
+    # install server locally
+    run_locally do
+      execute "sudo apt-get install -qy nfs-kernel-server"
+      execute "sudo mkdir #{shared_path}" unless test("[ -d #{shared_path} ]")
+      execute "echo #{shared_path} #{host_subnet}(rw,all_squash) | sudo tee /etc/exports > /dev/null"
+      execute "sudo service nfs-kernel-server restart"
+    end
+
+    on roles(:host) do
+      if !test("mount -l | grep #{shared_path}")
+        execute "sudo apt-get install -qy nfs-common"
+        execute "sudo mkdir #{shared_path}" unless test("[ -d #{shared_path} ]")
+        execute "sudo mount #{deploy_ip}:#{shared_path} #{shared_path}"
+      end
+    end
+
   end
 
 end
