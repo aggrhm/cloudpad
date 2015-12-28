@@ -1,3 +1,4 @@
+require 'colored'
 require "cloudpad/version"
 require "cloudpad/task_utils"
 require "cloudpad/cloud"
