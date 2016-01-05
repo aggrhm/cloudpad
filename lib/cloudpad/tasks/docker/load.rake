@@ -10,6 +10,10 @@ namespace :docker do
     set(:insecure_registry, false) if fetch(:insecure_registry).nil?
     set(:nfs_shared_path, "/shared") if fetch(:nfs_shared_path).nil?
     set(:host_subnet, "0.0.0.0/0") if fetch(:host_subnet).nil?
+    local_ip = local_ip_address
+    set(:launcher_ip, local_ip) if fetch(:launcher_ip).nil?
+    set(:registry, "#{local_ip}:5000") if fetch(:registry).nil?
+    set(:etcd_client_url, "http://#{local_ip}:2379") if fetch(:etcd_client_url).nil?
 
     fetch(:images).each do |type, opts|
       opts[:name] ||= "#{app_key}-#{type}"

@@ -9,27 +9,33 @@ module Cloudpad
         insecure = c.fetch(:insecure_registry)
         registry = c.fetch(:registry)
         insecure_flag = insecure ? "--insecure-registry #{registry}" : ""
+        cfr = "/etc/default/docker"
+        cfl = File.join(c.context_path, "conf", "docker.conf")
 
         # install docker if needed
         if !c.test("sudo which docker")
           c.info "Docker not installed, installing..."
+          c.execute "sudo apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 58118E89F3A912897C070ADBF76221572C52609D"
+          c.execute "sudo sh -c \"echo deb https://apt.dockerproject.org/repo ubuntu-trusty main > /etc/apt/sources.list.d/docker.list\""
           c.execute "sudo apt-get update"
           c.execute "sudo apt-get install -y linux-image-extra-`uname -r` apt-transport-https"
-          c.execute "sudo sh -c \"wget -qO- https://get.docker.io/gpg | apt-key add -\""
-          c.execute "sudo sh -c \"echo deb http://get.docker.io/ubuntu docker main > /etc/apt/sources.list.d/docker.list\""
-          c.execute "sudo apt-get update"
-          c.execute "sudo apt-get install -y lxc-docker-#{ver_meta[:version]}"
+          c.execute "sudo apt-get install -y docker-engine=#{ver_meta[:version]}"
         end
-        if ver_meta[:major] > 1 || ver_meta[:minor] > 2
-          # update docker config
-          c.replace_file_line("/etc/default/docker", "DOCKER_OPTS=", "DOCKER_OPTS='#{insecure_flag}'", {sudo: true})
-          # restart docker properly
+
+        # check if configuration changed
+        cflc = c.local_file_content(cfl, parse_erb: true)
+        cfrc = c.remote_file_content(cfr)
+        if cflc && cflc != cfrc
+          c.info "Docker configuration changed. Updating and restarting docker..."
+          c.upload_string!(cflc, "/tmp/docker.conf")
+          c.execute "sudo cp /tmp/docker.conf #{cfr}"
           c.execute "sudo service docker restart"
         end
       end
 
       def self.remove_docker(c)
         c.execute "sudo apt-get -y purge lxc-docker-*"
+        c.execute "sudo apt-get -y purge docker-engine"
       end
       
 

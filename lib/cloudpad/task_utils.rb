@@ -1,3 +1,5 @@
+require 'securerandom'
+
 module Cloudpad
   module TaskUtils
 
@@ -49,7 +51,7 @@ module Cloudpad
     end
 
     def container_public_key
-      kp = File.join(context_path, "keys", "container.pub")
+      kp = File.join(context_path, "keys", "container.key.pub")
       return File.read(kp).gsub("\n", "")
     end
 
@@ -150,10 +152,45 @@ module Cloudpad
       return ret
     end
 
+    def random_temp_file
+      return "/tmp/#{SecureRandom.hex(5)}"
+    end
+
     ## on host
 
     def process_running?(name)
       test("ps -ef | grep #{name} | grep -v \"grep\"")
+    end
+
+    def container_running?(name)
+      nr = capture("sudo docker ps -a --filter \"name=registry\" -q | wc -l")
+      return nr.to_i > 0
+    end
+
+    def remote_file_exists?(name)
+      test("[ -f #{name} ]")
+    end
+
+    def remote_file_content(name)
+      return nil if !remote_file_exists?(name)
+      capture("cat #{name}")
+    end
+
+    def local_file_content(name, opts={parse_erb: false})
+      return nil if !File.exists?(name)
+      c = File.read(name)
+      if opts[:parse_erb] == true
+        return build_template_file(name)
+      else
+        return c
+      end
+    end
+
+    def upload_string!(str, rf, opts={})
+      lf = random_temp_file
+      File.open(lf, "w") {|fp| fp.write(str)}
+      upload!(lf, rf, opts)
+      File.delete(lf)
     end
 
     def replace_file_line(file, find_exp, rep, opts={sudo: false})

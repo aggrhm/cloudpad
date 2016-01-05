@@ -5,12 +5,19 @@ namespace :hosts do
     cloud = fetch(:cloud)
     cloud.update
     hosts = cloud.hosts
+    host_key = File.join(context_path, "keys", "host.key")
+    has_host_key = File.exists?(host_key)
     puts "#{hosts.length} hosts found.".green
 
     hosts.each do |s|
       #puts "ROLES: #{s.roles.inspect}"
       puts "- Registering #{s.internal_ip}(#{s.name}) as #{s.roles.join(",")}".green
-      server s.internal_ip, roles: s.roles, user: s.user, source: s
+      sopts = {}
+      sopts[:roles] = s.roles
+      sopts[:user] = s.user
+      sopts[:source] = s
+      sopts[:ssh_options] = {keys: [host_key]} if has_host_key
+      server s.internal_ip, sopts
     end
   end
 
@@ -30,7 +37,7 @@ namespace :hosts do
 
   task :provision do
     invoke "hosts:ensure_docker"
-    invoke "hosts:ensure_etcd"
+    #invoke "hosts:ensure_etcd"   # now ran at launcher
     invoke "hosts:ensure_nfs"
   end
 
