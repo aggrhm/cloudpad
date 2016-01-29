@@ -125,7 +125,7 @@ namespace :hosts do
 
   task :ensure_ntpd do
     on roles(:host) do
-      if !is_package_installed?(ntpd)
+      if !is_package_installed?("ntpd")
         execute "sudo apt-get install -qy ntpd"
       end
     end
