@@ -36,6 +36,7 @@ namespace :hosts do
   end
 
   task :provision do
+    invoke "hosts:ensure_ntpd"
     invoke "hosts:ensure_docker"
     #invoke "hosts:ensure_etcd"   # now ran at launcher
     invoke "hosts:ensure_nfs"
@@ -120,6 +121,14 @@ namespace :hosts do
       end
     end
 
+  end
+
+  task :ensure_ntpd do
+    on roles(:host) do
+      if !is_package_installed?(ntpd)
+        execute "sudo apt-get install -qy ntpd"
+      end
+    end
   end
 
 end

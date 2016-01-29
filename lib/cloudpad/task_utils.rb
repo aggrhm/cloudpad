@@ -171,6 +171,10 @@ module Cloudpad
       test("[ -f #{name} ]")
     end
 
+    def is_package_installed?(name)
+      test("dpkg -s #{name}")
+    end
+
     def remote_file_content(name)
       return nil if !remote_file_exists?(name)
       capture("cat #{name}")
