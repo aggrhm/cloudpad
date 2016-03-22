@@ -50,6 +50,7 @@ namespace :docker do
   ### BUILD
   desc "Rebuild docker images for all defined container types"
   task :build do
+    no_cache = parse_env('no_cache') || false
     images = fetch(:images)
     services = fetch(:services)
     puts "No images to build".red if images.nil? || images.empty?
@@ -79,8 +80,9 @@ namespace :docker do
       df_str = build_template_file(df_path)
       cdf_path = File.join(context_path, "Dockerfile")
       File.open(cdf_path, "w") {|fp| fp.write(df_str)}
+      cache_opts = no_cache ? "--no-cache " : ""
 
-      sh "sudo docker build -t #{opts[:name]} #{context_path}"
+      sh "sudo docker build -t #{opts[:name]} #{cache_opts}#{context_path}"
 
     end
     set :building_image, nil
@@ -99,14 +101,6 @@ namespace :docker do
       sh "sudo docker tag -f #{opts[:name]}:latest #{reg}/#{opts[:name]}:latest"
       sh "sudo docker push #{reg}/#{opts[:name]}:latest"
     end
-  end
-
-  ### CLEAN_LOCAL
-  desc "Cleanup images and containers"
-  task :clean_local do
-    sh "sudo docker stop $(sudo docker ps -a -q)"
-    sh "sudo docker rm $(sudo docker ps -a -q)"
-    sh "sudo docker rmi $(sudo docker images -a -q)"
   end
 
 end

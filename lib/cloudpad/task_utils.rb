@@ -217,6 +217,21 @@ module Cloudpad
       `ifconfig #{dev} | grep inet | awk '{print $2}' | sed 's/addr://'`.strip
     end
 
+    def parse_env(var)
+      val = ENV[var]
+      if val.nil?
+        return nil
+      elsif val == "true"
+        return true
+      elsif val == "false"
+        return false
+      elsif val.match(/^\d+$/)
+        return val.to_i
+      else
+        return val
+      end
+    end
+
   end
 end
 

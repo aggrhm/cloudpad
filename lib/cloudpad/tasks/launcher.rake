@@ -65,4 +65,116 @@ namespace :launcher do
     end
   end
 
+  task :clean do
+    run_locally do
+      execute "sudo docker rmi $(sudo docker images -q --filter \"dangling=true\")"
+    end
+  end
+
+  task :list_commands do
+
+    commands = [
+      # launcher
+      {
+        name: "launcher:ensure_docker",
+        desc: "Ensure docker running on launching host",
+        group: "Launcher"
+      },
+      {
+        name: "launcher:ensure_etcd",
+        desc: "Ensure etcd running on launching host",
+        group: "Launcher"
+      },
+      {
+        name: "launcher:ensure_registry",
+        desc: "Ensure registry running on launching host",
+        group: "Launcher"
+      },
+      {
+        name: "launcher:cache_repo_gemfiles",
+        desc: "Cache gemfiles in context directory for repository",
+        group: "Launcher",
+        options: [
+          {flag: "repo", desc: "The repository to cache"}
+        ]
+      },
+      {
+        name: "launcher:clean",
+        desc: "Clean up any untagged images",
+        group: "Launcher",
+        options: []
+      },
+      # docker
+      {
+        name: "docker:update_repos",
+        desc: "Update code repositories",
+        group: "Docker",
+        options: [
+          {flag: "run_repo_scripts", desc: "Run repository post-update scripts"}
+        ]
+      },
+      {
+        name: "docker:build",
+        desc: "Build container images",
+        group: "Docker",
+        options: [
+          {flag: "no_cache", desc: "Build image without using cache"},
+          {flag: "skip_update_repos", desc: "Skip updating the repositories before building"}
+        ]
+      },
+      {
+        name: "docker:add",
+        desc: "Start new container from image",
+        group: "Docker",
+        options: []
+      },
+      {
+        name: "docker:remove",
+        desc: "Stop running container",
+        group: "Docker",
+        options: []
+      },
+      {
+        name: "docker:deploy",
+        desc: "Build images, stop containers, and restart with new images",
+        group: "Docker",
+        options: []
+      },
+      # hosts
+      {
+        name: "hosts:add",
+        desc: "Build images, stop containers, and restart with new images",
+        group: "Hosts",
+        options: []
+      },
+      {
+        name: "hosts:provision",
+        desc: "Ensure necessary processes running on hosts",
+        group: "Hosts",
+        options: []
+      },
+      {
+        name: "hosts:clean",
+        desc: "Remove untagged images from hosts",
+        group: "Hosts",
+        options: []
+      },
+    ]
+
+    groups = ["Launcher", "Docker", "Hosts"]
+
+    groups.each do |group|
+      puts "\n#{group.upcase}"
+      puts "====================="
+      commands.select{|c| c[:group] == group}.each do |cmd|
+        puts "\n#{cmd[:name]}"
+        puts "\t#{cmd[:desc]}"
+        (cmd[:options] || []).each do |opt|
+          puts "\t\t- <#{opt[:flag]}> #{opt[:desc]}"
+        end
+      end
+    end
+
+  end
+
 end

@@ -131,6 +131,12 @@ namespace :hosts do
     end
   end
 
+  task :clean do
+    on roles(:host) do
+      execute "sudo docker rmi $(sudo docker images -q --filter \"dangling=true\")"
+    end
+  end
+
 end
 
 Capistrano::DSL.stages.each do |stage|
