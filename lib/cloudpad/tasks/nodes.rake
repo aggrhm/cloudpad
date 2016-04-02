@@ -7,7 +7,7 @@ namespace :nodes do
     nodes = cloud.nodes
     host_key = File.join(context_path, "keys", "node.key")
     has_host_key = File.exists?(host_key)
-    puts "#{hosts.length} hosts found.".green
+    puts "#{nodes.length} nodes found.".green
     role_filter = ENV['ROLES'] || ENV['NODE_ROLES']
     if role_filter
       role_filter = role_filter.split(",").collect{|r| r.downcase.to_sym}
@@ -31,13 +31,19 @@ namespace :nodes do
     on roles(:all) do |host|
       Cloudpad::Context.ensure_puppet_installed(self)
       # backup current puppet
-      if test("-d /tmp/puppet-bkp")
-        execute "sudo rm /tmp/puppet-bkp"
+      if test("[ -d /tmp/puppet-bkp ]")
+        execute "sudo rm -rf /tmp/puppet-bkp"
       end
-      execute "sudo mv /etc/puppet /tmp/puppet-bkp"
+      if test("[ -d /etc/puppet ]")
+        execute "sudo mv /etc/puppet /tmp/puppet-bkp"
+      end
       # upload puppet files
-      upload! puppet_path, "/etc/puppet", recursive: true
-      execute "sudo puppet apply /etc/puppet/manifests/site.pp"
+      if test("[ -d /tmp/puppet_config ]")
+        execute "rm -rf /tmp/puppet_config"
+      end
+      copy_directory puppet_path, "/tmp/puppet_config"
+      execute "sudo mv /tmp/puppet_config /etc/puppet"
+      execute "sudo puppet apply --logdest syslog --verbose /etc/puppet/manifests/site.pp"
     end
 
   end

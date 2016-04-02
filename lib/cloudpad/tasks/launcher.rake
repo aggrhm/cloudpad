@@ -43,6 +43,21 @@ namespace :launcher do
     end
   end
 
+  task :ensure_puppet do
+    run_locally do
+      Cloudpad::Context.ensure_puppet_installed(self)
+    end
+  end
+
+  task :install_puppet_module do
+    mod_name = ENV['module']
+    mod_dir = File.join puppet_path, "modules"
+    run_locally do
+      Cloudpad::Context.ensure_puppet_installed(self)
+      execute "sudo puppet module install #{mod_name} --target-dir #{mod_dir}"
+    end
+  end
+
   task :cache_repo_gemfiles do
     repo_name = ENV['repo']
     repos = fetch(:repos)

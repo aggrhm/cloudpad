@@ -203,6 +203,17 @@ module Cloudpad
       File.delete(lf)
     end
 
+    def copy_directory(local, remote)
+      lf = random_temp_file
+      `tar zcf #{lf} -C #{local} .`
+      upload!(lf, lf)
+      execute "mkdir -p #{remote}"
+      execute "tar zxf #{lf} -C #{remote}"
+      `rm -f #{lf}`
+      execute "rm -f #{lf}"
+      info "Directory #{local} compressed and copied to #{remote} on host."
+    end
+
     def replace_file_line(file, find_exp, rep, opts={sudo: false})
       pfx = opts[:sudo] ? "sudo " : ""
       bn = File.basename(file)
