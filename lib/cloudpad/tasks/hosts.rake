@@ -8,9 +8,13 @@ namespace :hosts do
     host_key = File.join(context_path, "keys", "host.key")
     has_host_key = File.exists?(host_key)
     puts "#{hosts.length} hosts found.".green
+    role_filter = ENV['ROLES'] || ENV['NODE_ROLES']
+    if role_filter
+      role_filter = role_filter.split(",").collect{|r| r.downcase.to_sym}
+    end
 
     hosts.each do |s|
-      #puts "ROLES: #{s.roles.inspect}"
+      next if role_filter && (s.roles & role_filter).length == 0
       puts "- Registering #{s.internal_ip}(#{s.name}) as #{s.roles.join(",")}".green
       sopts = {}
       sopts[:roles] = s.roles
@@ -22,17 +26,7 @@ namespace :hosts do
   end
 
   task :add do
-    cloud = fetch(:cloud)
-    host = Cloudpad::Host.new
-    host.name = prompt("Enter host name")
-    host.external_ip = prompt("Enter external ip")
-    host.internal_ip = prompt("Enter internal ip")
-    host.roles = [:host]
-    host.user = prompt("Enter login user", "ubuntu")
-    host.os = prompt("Enter host os", "ubuntu")
-    cloud.hosts << host
-    cloud.update_cache
-    puts "Host #{host.name} added."
+    Cloudpad::Context.prompt_add_node(self, roles: [:host])
   end
 
   task :provision do

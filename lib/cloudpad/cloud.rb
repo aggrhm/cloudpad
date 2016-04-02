@@ -7,12 +7,16 @@ module Cloudpad
 
     def initialize(env)
       @env = env
-      @hosts = []
+      @nodes = []
       @containers = []
     end
 
+    def nodes
+      @nodes
+    end
+
     def hosts
-      @hosts
+      @nodes.select {|n| n.has_role?(:host)}
     end
 
     def containers
@@ -20,7 +24,7 @@ module Cloudpad
     end
 
     def update
-      @hosts = []
+      @nodes = []
       @containers = []
       case @env.fetch(:cloud_provider)
       when :boxchief
@@ -29,7 +33,7 @@ module Cloudpad
         data = get_cached_cloud
       end
       data[:containers] ||= []
-      @hosts = data[:hosts]
+      @nodes = data[:nodes]
       @containers = data[:containers]
       update_cache
     end
@@ -48,18 +52,18 @@ module Cloudpad
       end
 
       File.open(cache_file_path, "w") do |f|
-        f.write({"hosts" => @hosts.collect(&:data), "containers" => @containers.collect(&:data)}.to_yaml)
+        f.write({"nodes" => @nodes.collect(&:data), "containers" => @containers.collect(&:data)}.to_yaml)
       end
     end
 
     def get_cached_cloud
-      return {hosts: [], containers: []} if !File.exists?(cache_file_path)
+      return {nodes: [], containers: []} if !File.exists?(cache_file_path)
       data = YAML.load_file(cache_file_path)
       #puts data
-      data["hosts"] ||= []
+      data["nodes"] ||= []
       data["containers"] ||= []
       return {
-        hosts: data["hosts"].collect{|h| Host.new(h)},
+        nodes: data["nodes"].collect{|h| Node.new(h)},
         containers: data["containers"].collect{|h| Container.new(h)}
       }
     end
@@ -79,14 +83,14 @@ module Cloudpad
       end
 
       hosts = resp["data"].collect do |sd|
-        host = Host.new
+        host = Node.new
         host[:name] = sd["hostname"]
         host[:external_ip] = sd["ip"]
         host[:roles] = sd["roles"]
         host[:cloud_provider] = "boxchief"
         host
       end
-      return {hosts: servers}
+      return {nodes: servers}
     end
 
   end
@@ -122,7 +126,7 @@ module Cloudpad
 
   end
 
-  class Host < CloudElement
+  class Node < CloudElement
 
     def internal_ip
       self["internal_ip"] || self["external_ip"]
@@ -130,6 +134,11 @@ module Cloudpad
 
     def roles
       (@data["roles"] || []).collect(&:to_sym)
+    end
+
+    def has_role?(rl)
+      rl = [rl] unless rl.is_a?(Array)
+      (self.roles & rl).length > 0
     end
 
     def has_id?(val)

@@ -22,6 +22,12 @@ module Cloudpad
     def repos_path
       File.join(context_path, "src")
     end
+    def config_path
+      File.join root_path, "config"
+    end
+    def puppet_path
+      File.join config_path, "puppet"
+    end
 
     def prompt(question, default=nil)
       def_str = default ? " [#{default}] " : " "
