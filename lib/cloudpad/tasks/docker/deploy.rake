@@ -107,6 +107,7 @@ namespace :docker do
     end
     if changes.length > 0 && !noop
       puts "Executing changes...".yellow
+      invoke "docker:update_host_images"
       changes.each do |c|
         Cloudpad::Docker::Context.execute_container_change(self, c)
       end
@@ -129,4 +130,3 @@ before "docker:ssh", "docker:check_running"
 
 before "docker:maintain", "docker:check_launcher_images"
 before "docker:maintain", "docker:check_running"
-before "docker:maintain", "docker:update_host_images"
