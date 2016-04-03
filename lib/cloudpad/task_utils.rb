@@ -223,12 +223,15 @@ module Cloudpad
         update_directory_checksum(local)
       end
       lsum = File.read(lsum_file)
+      #puts "LSUM: " + lsum
       rsum = remote_file_content(File.join(remote, ".cloudpad-md5"))
+      #puts "RSUM: " + rsum
+      #raise "test"
       return lsum && rsum && lsum.strip == rsum.strip
     end
 
     def update_directory_checksum(local)
-      `tar cf - #{local} | md5sum > #{File.join(local, ".cloudpad-md5")}`
+      `tar cf - --exclude='.cloudpad-md5' -C #{local} . | md5sum > #{File.join(local, ".cloudpad-md5")}`
     end
 
     def replace_file_line(file, find_exp, rep, opts={sudo: false})

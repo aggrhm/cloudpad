@@ -76,7 +76,7 @@ module Cloudpad
           # fetch image info
           img_ids = img_ids.uniq.compact
           if img_ids.length > 0
-            img_data = capture("sudo docker ps #{img_ids.join(" ")}")
+            img_data = capture("sudo docker inspect #{img_ids.join(" ")}")
             JSON.parse(img_data).each do |inf|
               containers.select{|c| c.meta["image_id"] == inf["Id"]}.each do |c|
                 c.meta["image_info"] = inf
@@ -163,7 +163,7 @@ module Cloudpad
         end
 
         # update accounted expected
-        excs.select{|c| c[:accounted == true} each do |c|
+        excs.select{|c| c[:accounted] == true}.each do |c|
           if c[:image_id] != c[:actual][:image_id]
             # needs to update instance
             changes << {action: :update, spec: c[:actual]}

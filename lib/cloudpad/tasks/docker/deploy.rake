@@ -43,7 +43,7 @@ namespace :docker do
   ### DEPLOY
   task :deploy do
     invoke "docker:build"
-    invoke "docker:update"
+    invoke "docker:maintain"
   end
 
 
