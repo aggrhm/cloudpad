@@ -12,6 +12,47 @@ namespace :launcher do
     end
   end
 
+  task :provision do
+    invoke "launcher:ensure_ntp"
+    invoke "launcher:ensure_nfs"
+    invoke "launcher:ensure_docker"
+    invoke "launcher:ensure_registry"
+    invoke "launcher:ensure_etcd"
+    invoke "launcher:ensure_puppet"
+  end
+
+  task :ensure_ntp do
+    on roles(:host) do
+      if !is_package_installed?("ntp")
+        execute "sudo apt-get install -qy ntp"
+      end
+    end
+  end
+
+  task :ensure_nfs do
+    shared_path = fetch(:nfs_shared_path)
+    host_subnet = fetch(:host_subnet)
+    # install server locally
+    run_locally do
+      # install package if needed
+      if !is_package_installed?("nfs-kernel-server")
+        execute "sudo apt-get install -qy nfs-kernel-server"
+      end
+      # create share path if needed
+      if !test("[ -d #{shared_path} ]")
+        execute "sudo mkdir #{shared_path}" 
+        execute "sudo chmod a+w #{shared_path}"
+      end
+      # update exports file and restart if needed
+      export_str = "#{shared_path} #{host_subnet}(rw,all_squash)"
+      act_export_str = local_file_content("/etc/exports")
+      if act_export_str.nil? || act_export_str.strip != export_str
+        execute "echo \"#{export_str}\" | sudo tee /etc/exports > /dev/null"
+        execute "sudo service nfs-kernel-server restart"
+      end
+    end
+  end
+
   task :ensure_registry do
     run_locally do
       if !container_running?("registry")

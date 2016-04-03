@@ -70,17 +70,6 @@ namespace :hosts do
     host_subnet = fetch(:host_subnet)
     deploy_ip = local_ip_address
 
-    # install server locally
-    run_locally do
-      execute "sudo apt-get install -qy nfs-kernel-server"
-      if !test("[ -d #{shared_path} ]")
-        execute "sudo mkdir #{shared_path}" 
-        execute "sudo chmod a+w #{shared_path}"
-      end
-      execute "echo \"#{shared_path} #{host_subnet}(rw,all_squash)\" | sudo tee /etc/exports > /dev/null"
-      execute "sudo service nfs-kernel-server restart"
-    end
-
     # mount path remotely
     on roles(:host) do
       if !test("mount -l | grep #{shared_path}")
