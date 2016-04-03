@@ -50,7 +50,7 @@ namespace :docker do
   ### CHECK_RUNNING
   desc "Check running containers"
   task :check_running do
-    Cloudpad::Docker::Context.check_running(c, do_print: true)
+    Cloudpad::Docker::Context.check_running(self, do_print: true)
   end
 
   ### LIST
@@ -90,15 +90,16 @@ namespace :docker do
 
   ### MAINTAIN
   task :maintain do
+    noop = parse_env("noop")
     changes = Cloudpad::Docker::Context.compute_container_changes(self)
     puts "#{changes.length} container changes needed.".yellow
     changes.each do |c|
       s = c[:spec]
-      str = "- #{c[:action].upcase} #{s[:type]}-#{s[:instance]} on #{s[:hosts] || s[:host]}"
+      str = "- #{c[:action].upcase} #{s[:name]} on #{s[:hosts] || s[:host]}"
       str = (c[:action].to_sym == :delete) ? str.red : str.green
       puts str
     end
-    if changes.length > 0
+    if changes.length > 0 && !noop
       puts "Executing changes...".yellow
       changes.each do |c|
         Cloudpad::Docker::Context.execute_container_change(self, c)

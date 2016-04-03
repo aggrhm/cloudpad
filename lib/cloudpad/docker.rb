@@ -38,8 +38,54 @@ module Cloudpad
         c.execute "sudo apt-get -y purge docker-engine"
       end
 
+      def self.check_running(c, opts={})
+        containers = []
+        c.on(c.roles(:host)) do |server|
+          host = server.properties.source
+          host.status[:free_mem] = capture("free -m | grep Mem | awk '{print $4}'").to_i
+          ids = capture("sudo docker ps -q").strip
+          if ids.length > 0
+            hd = capture("sudo docker inspect $(sudo docker ps -q)")
+          else
+            hd = "[]"
+          end
+          # parse container info
+          JSON.parse(hd).each do |cs|
+            cn = cs["Name"].gsub("/", "")
+            ip = cs["NetworkSettings"]["IPAddress"]
+            ak, type, inst = cn.split(".")
+            if ak == c.fetch(:app_key)
+              ci = Cloudpad::Container.new
+              # this is a container we manage, add it to list
+              ci.host = host
+              ci.app_key = ak
+              ci.options = c.fetch(:container_types)[type.to_sym]
+              ci.image_options = c.fetch(:images)[ci.options[:image]]
+              ci.name = cn
+              ci.type = type.to_sym
+              ci.instance = inst.to_i
+              ci.ip_address = ip
+              ci.state = :running
+              containers << ci
+            end
+          end
+        end
+        puts "#{containers.length} containers running in #{c.fetch(:stage)} for this application.".green
+        puts containers.collect{|c| "- #{c.name} (on #{c.host.name} at #{c.ip_address}) : #{c.type}"}.join("\n").green
+        c.set :running_containers, containers
+        # host info
+        puts "Host Summary:".green
+        c.fetch(:cloud).hosts.each do |host|
+          cs = c.containers_on_host(host)
+          puts "- #{host.name}: #{cs.length} containers running | #{host.status[:free_mem]} MB RAM free".green
+        end
+        return containers
+
+      end
+
       def self.compute_container_changes(c)
         changes = []
+        app_key = c.fetch(:app_key)
         cts = c.fetch(:running_containers)
         ctopts = c.fetch(:container_types)
         cloud = c.fetch(:cloud)
@@ -52,13 +98,17 @@ module Cloudpad
           hosts = copts[:hosts] || cloud.hosts.collect{|h| h.name}
           if ifls.include?(:count_per_host)
             hosts.each do |h|
-              ic.times do |inst|
-                excs << {type: type, instance: inst+1, hosts: [h], accounted: false}
+              ic.times do |idx|
+                inst = idx + 1
+                name = "#{app_key}.#{type}.#{inst}"
+                excs << {type: type, instance: inst, hosts: [h], name: name, accounted: false}
               end
             end
           else
-            ic.times do |inst|
-              excs << {type: type, instance: inst+1, hosts: hosts, accounted: false}
+            ic.times do |idx|
+              inst = idx + 1
+              name = "#{app_key}.#{type}.#{inst}"
+              excs << {type: type, instance: inst, hosts: hosts, name: name, accounted: false}
             end
           end
         end
@@ -113,7 +163,7 @@ module Cloudpad
           c.on server do |server|
             host = server.properties.source
             ct = Cloudpad::Container.prepare({type: type, instance: inst, app_key: app_key}, copts, img_opts, host)
-            c.execute ct.start_command(env)
+            execute ct.start_command(c)
           end
           puts "Waiting for container to initialize...".yellow
           sleep 3
@@ -128,54 +178,9 @@ module Cloudpad
         c.on c.roles(:host) do |server|
           host = server.properties.source
           c.containers_on_host(host).each do |ct|
-            c.execute ct.stop_command(c) if ( (type && ct.type == type.to_sym) || (name && ct.name == name) )
+            execute ct.stop_command(c) if ( (type && ct.type == type.to_sym) || (name && ct.name == name) )
           end
         end
-      end
-
-      def self.check_running(c, opts={})
-        containers = []
-        c.on c.roles(:host) do |server|
-          host = server.properties.source
-          host.status[:free_mem] = c.capture("free -m | grep Mem | awk '{print $4}'").to_i
-          ids = c.capture("sudo docker ps -q").strip
-          if ids.length > 0
-            hd = c.capture("sudo docker inspect $(sudo docker ps -q)")
-          else
-            hd = "[]"
-          end
-          # parse container info
-          JSON.parse(hd).each do |cs|
-            cn = cs["Name"].gsub("/", "")
-            ip = cs["NetworkSettings"]["IPAddress"]
-            ak, type, inst = cn.split(".")
-            if ak == c.fetch(:app_key)
-              ci = Cloudpad::Container.new
-              # this is a container we manage, add it to list
-              ci.host = host
-              ci.app_key = ak
-              ci.options = c.fetch(:container_types)[type.to_sym]
-              ci.image_options = c.fetch(:images)[ci.options[:image]]
-              ci.name = cn
-              ci.type = type.to_sym
-              ci.instance = inst.to_i
-              ci.ip_address = ip
-              ci.state = :running
-              containers << ci
-            end
-          end
-        end
-        puts "#{containers.length} containers running in #{c.fetch(:stage)} for this application.".green
-        puts containers.collect{|c| "- #{c.name} (on #{c.host.name} at #{c.ip_address}) : #{c.type}"}.join("\n").green
-        c.set :running_containers, containers
-        # host info
-        puts "Host Summary:".green
-        c.fetch(:cloud).hosts.each do |host|
-          cs = c.containers_on_host(host)
-          puts "- #{host.name}: #{cs.length} containers running | #{host.status[:free_mem]} MB RAM free".green
-        end
-        return containers
-
       end
 
       def self.execute_container_change(c, change)
