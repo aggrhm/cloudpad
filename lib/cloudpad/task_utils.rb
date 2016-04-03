@@ -169,7 +169,7 @@ module Cloudpad
     end
 
     def container_running?(name)
-      nr = capture("sudo docker ps -a --filter \"name=registry\" -q | wc -l")
+      nr = capture("sudo docker ps -a --filter \"name=#{name}\" -q | wc -l")
       return nr.to_i > 0
     end
 
@@ -203,7 +203,10 @@ module Cloudpad
       File.delete(lf)
     end
 
-    def copy_directory(local, remote)
+    def copy_directory(local, remote, opts={})
+      if opts[:update_checksum]
+        update_directory_checksum(local)
+      end
       lf = random_temp_file
       `tar zcf #{lf} -C #{local} .`
       upload!(lf, lf)
@@ -212,6 +215,20 @@ module Cloudpad
       `rm -f #{lf}`
       execute "rm -f #{lf}"
       info "Directory #{local} compressed and copied to #{remote} on host."
+    end
+
+    def directory_checksums_match?(local, remote, opts={})
+      lsum_file = File.join(local, ".cloudpad-md5")
+      if opts[:update_local] || !File.exists?(lsum_file)
+        update_directory_checksum(local)
+      end
+      lsum = File.read(lsum_file)
+      rsum = remote_file_content(File.join(remote, ".cloudpad-md5"))
+      return lsum && rsum && lsum.strip == rsum.strip
+    end
+
+    def update_directory_checksum(local)
+      `tar cf - #{local} | md5sum > #{File.join(local, ".cloudpad-md5")}`
     end
 
     def replace_file_line(file, find_exp, rep, opts={sudo: false})

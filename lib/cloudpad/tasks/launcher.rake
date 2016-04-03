@@ -24,7 +24,7 @@ namespace :launcher do
 
   task :ensure_etcd do
     run_locally do
-      if !container_running?("etcd")
+      if container_running?("etcd")
         execute "sudo docker start etcd"
       else
         host_ip = fetch(:launcher_ip)

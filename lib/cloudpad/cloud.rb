@@ -176,6 +176,10 @@ module Cloudpad
       "#{self.image_options[:name]}:latest"
     end
 
+    def meta
+      @meta ||= {}.with_indifferent_access
+    end
+
     def ports
       @ports ||= begin
         # parse ports

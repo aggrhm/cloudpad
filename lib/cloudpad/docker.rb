@@ -49,10 +49,13 @@ module Cloudpad
           else
             hd = "[]"
           end
+          img_ids = []
           # parse container info
           JSON.parse(hd).each do |cs|
             cn = cs["Name"].gsub("/", "")
             ip = cs["NetworkSettings"]["IPAddress"]
+            img_id = cs["Image"]
+            img_ids << img_id
             ak, type, inst = cn.split(".")
             if ak == c.fetch(:app_key)
               ci = Cloudpad::Container.new
@@ -66,7 +69,19 @@ module Cloudpad
               ci.instance = inst.to_i
               ci.ip_address = ip
               ci.state = :running
+              ci.meta["image_id"] = img_id
               containers << ci
+            end
+          end
+          # fetch image info
+          img_ids = img_ids.uniq.compact
+          if img_ids.length > 0
+            img_data = capture("sudo docker ps #{img_ids.join(" ")}")
+            JSON.parse(img_data).each do |inf|
+              containers.select{|c| c.meta["image_id"] == inf["Id"]}.each do |c|
+                c.meta["image_info"] = inf
+                c.meta["image_created"] = inf["Created"]
+              end
             end
           end
         end
@@ -83,12 +98,26 @@ module Cloudpad
 
       end
 
+      def self.check_launcher_images(c)
+        images = c.fetch(:images)
+        images.each do |type, iopts|
+          img_id = `sudo docker images -q #{iopts[:name]}:latest`.strip
+          if img_id != ""
+            iopts[:latest_id] = img_id
+            info = JSON.parse(`sudo docker inspect #{img_id}`).first
+            iopts[:latest_info] = info
+            iopts[:latest_created] = info["Created"]
+          end
+        end
+      end
+
       def self.compute_container_changes(c)
         changes = []
         app_key = c.fetch(:app_key)
         cts = c.fetch(:running_containers)
         ctopts = c.fetch(:container_types)
         cloud = c.fetch(:cloud)
+        images = c.fetch(:images)
         excs = []
         atcs = {}
         # determine expected containers
@@ -96,19 +125,20 @@ module Cloudpad
           ic = copts[:instance_count] || 0
           ifls = copts[:instance_flags] || []
           hosts = copts[:hosts] || cloud.hosts.collect{|h| h.name}
+          image_id = images[copts[:image]][:latest_created]
           if ifls.include?(:count_per_host)
             hosts.each do |h|
               ic.times do |idx|
                 inst = idx + 1
                 name = "#{app_key}.#{type}.#{inst}"
-                excs << {type: type, instance: inst, hosts: [h], name: name, accounted: false}
+                excs << {type: type, instance: inst, hosts: [h], name: name, image_id: image_id, accounted: false}
               end
             end
           else
             ic.times do |idx|
               inst = idx + 1
               name = "#{app_key}.#{type}.#{inst}"
-              excs << {type: type, instance: inst, hosts: hosts, name: name, accounted: false}
+              excs << {type: type, instance: inst, hosts: hosts, name: name, image_id: image_id, accounted: false}
             end
           end
         end
@@ -116,7 +146,7 @@ module Cloudpad
         # compile actual containers
         cts.each do |c|
           ck = "#{c.host.name}+#{c.type}+#{c.instance}"
-          atcs[ck] = {type: c.type, instance: c.instance, host: c.host.name, name: c.name, accounted: false}
+          atcs[ck] = {type: c.type, instance: c.instance, host: c.host.name, name: c.name, image_id: c.meta["image_created"], accounted: false}
         end
 
         # account containers
@@ -125,9 +155,18 @@ module Cloudpad
             ck = "#{h}+#{c[:type]}+#{c[:instance]}"
             if (atc = atcs[ck])
               c[:accounted] = true
+              c[:actual] = atc
               atc[:accounted] = true
               break
             end
+          end
+        end
+
+        # update accounted expected
+        excs.select{|c| c[:accounted == true} each do |c|
+          if c[:image_id] != c[:actual][:image_id]
+            # needs to update instance
+            changes << {action: :update, spec: c[:actual]}
           end
         end
 
@@ -183,12 +222,29 @@ module Cloudpad
         end
       end
 
+      def self.update_container(c, opts={})
+        name = opts[:name]
+        type = opts[:type]
+
+        c.on c.roles(:host) do |server|
+          host = server.properties.source
+          c.containers_on_host(host).each do |ct|
+            if (type && ct.type == type.to_sym) || (name && ct.name == name)
+              execute ct.stop_command(c)
+              execute ct.start_command(c)
+            end
+          end
+        end
+      end
+
       def self.execute_container_change(c, change)
         case change[:action].to_sym
         when :create
           Cloudpad::Docker::Context.add_container(c, change[:spec])
         when :delete
           Cloudpad::Docker::Context.remove_container(c, {name: change[:spec][:name]})
+        when :update
+          Cloudpad::Docker::Context.update_container(c, {name: change[:spec][:name]})
         end
       end
       

@@ -28,22 +28,29 @@ namespace :nodes do
 
   task :provision do
 
+    # update checksum for puppet dir
+    update_directory_checksum(puppet_path)
     on roles(:all) do |host|
       Cloudpad::Context.ensure_puppet_installed(self)
-      # backup current puppet
-      if test("[ -d /tmp/puppet-bkp ]")
-        execute "sudo rm -rf /tmp/puppet-bkp"
+      # check if puppet config out of date
+      if !directory_checksums_match?(puppet_path, "/etc/puppet")
+        # backup current puppet
+        if test("[ -d /tmp/puppet-bkp ]")
+          execute "sudo rm -rf /tmp/puppet-bkp"
+        end
+        if test("[ -d /etc/puppet ]")
+          execute "sudo mv /etc/puppet /tmp/puppet-bkp"
+        end
+        # upload puppet files
+        if test("[ -d /tmp/puppet_config ]")
+          execute "rm -rf /tmp/puppet_config"
+        end
+        copy_directory puppet_path, "/tmp/puppet_config"
+        execute "sudo mv /tmp/puppet_config /etc/puppet"
+        execute "sudo puppet apply --logdest syslog --verbose /etc/puppet/manifests/site.pp"
+      else
+        info "Puppet configuration up-to-date."
       end
-      if test("[ -d /etc/puppet ]")
-        execute "sudo mv /etc/puppet /tmp/puppet-bkp"
-      end
-      # upload puppet files
-      if test("[ -d /tmp/puppet_config ]")
-        execute "rm -rf /tmp/puppet_config"
-      end
-      copy_directory puppet_path, "/tmp/puppet_config"
-      execute "sudo mv /tmp/puppet_config /etc/puppet"
-      execute "sudo puppet apply --logdest syslog --verbose /etc/puppet/manifests/site.pp"
     end
 
   end
