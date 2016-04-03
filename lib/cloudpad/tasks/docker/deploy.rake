@@ -6,25 +6,7 @@ namespace :docker do
     type = ENV['type'].to_sym
     count = ENV['count'] ? ENV['count'].to_i : 1
     filt = ENV['chost'] ? ENV['chost'].split(',') : nil
-    copts = fetch(:container_types)[type]
-    img_opts = fetch(:images)[copts[:image]]
-    app_key = fetch(:app_key)
-    (1..count).each do
-      server = next_available_server(type, filt)
-      if server.nil?
-        puts "No server available (check image host parameters)".red
-        break
-      end
-      on server do |server|
-        host = server.properties.source
-        inst = next_available_container_instance(type)
-        ct = Cloudpad::Container.prepare({type: type, instance: inst, app_key: app_key}, copts, img_opts, host)
-        execute ct.start_command(env)
-      end
-      puts "Waiting for container to initialize...".yellow
-      sleep 3
-      Rake::Task["docker:check_running"].execute
-    end
+    Cloudpad::Docker::Context.add_container(self, type: type, count: count, host_filter: filt)
   end
 
 
@@ -33,19 +15,7 @@ namespace :docker do
   task :remove do
     name = ENV['name']
     type = ENV['type']
-    state = ENV['state']
-
-    on roles(:host) do |server|
-      if state == "stopped"
-        execute "sudo docker rm $(sudo docker ps -a -q)"
-      else
-        host = server.properties.source
-        containers_on_host(host).each do |ct|
-          execute ct.stop_command(env) if ( (type && ct.type == type.to_sym) || (name && ct.name == name) )
-        end
-      end
-    end
-    Rake::Task["docker:check_running"].execute
+    Cloudpad::Docker::Context.remove_container(self, name: name, type: type)
   end
 
 
@@ -80,46 +50,7 @@ namespace :docker do
   ### CHECK_RUNNING
   desc "Check running containers"
   task :check_running do
-    containers = []
-    on roles(:host) do |server|
-      host = server.properties.source
-      host.status[:free_mem] = capture("free -m | grep Mem | awk '{print $4}'").to_i
-      ids = capture("sudo docker ps -q").strip
-      if ids.length > 0
-        hd = capture("sudo docker inspect $(sudo docker ps -q)")
-      else
-        hd = "[]"
-      end
-      # parse container info
-      JSON.parse(hd).each do |cs|
-        cn = cs["Name"].gsub("/", "")
-        ip = cs["NetworkSettings"]["IPAddress"]
-        ak, type, inst = cn.split(".")
-        if ak == fetch(:app_key)
-          ci = Cloudpad::Container.new
-          # this is a container we manage, add it to list
-          ci.host = host
-          ci.app_key = ak
-          ci.options = fetch(:container_types)[type.to_sym]
-          ci.image_options = fetch(:images)[ci.options[:image]]
-          ci.name = cn
-          ci.type = type.to_sym
-          ci.instance = inst.to_i
-          ci.ip_address = ip
-          ci.state = :running
-          containers << ci
-        end
-      end
-    end
-    puts "#{containers.length} containers running in #{fetch(:stage)} for this application.".green
-    puts containers.collect{|c| "- #{c.name} (on #{c.host.name} at #{c.ip_address}) : #{c.type}"}.join("\n").green
-    set :running_containers, containers
-    # host info
-    puts "Host Summary:".green
-    fetch(:cloud).hosts.each do |host|
-      cs = containers_on_host(host)
-      puts "- #{host.name}: #{cs.length} containers running | #{host.status[:free_mem]} MB RAM free".green
-    end
+    Cloudpad::Docker::Context.check_running(c, do_print: true)
   end
 
   ### LIST
@@ -166,6 +97,13 @@ namespace :docker do
       str = "- #{c[:action].upcase} #{s[:type]}-#{s[:instance]} on #{s[:hosts] || s[:host]}"
       str = (c[:action].to_sym == :delete) ? str.red : str.green
       puts str
+    end
+    if changes.length > 0
+      puts "Executing changes...".yellow
+      changes.each do |c|
+        Cloudpad::Docker::Context.execute_container_change(self, c)
+      end
+      Cloudpad::Docker::Context.check_running(self)
     end
   end
 
