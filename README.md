@@ -80,6 +80,10 @@ See the [Usage documentation](https://github.com/agquick/cloudpad/blob/master/do
 
 		src/api/.git
 
+## Pending Changes
+
+* **Declarative Deployment** - Add 'count' option to container definition, and use 'docker:maintain' command to ensure necessary containers are running on proper hosts.
+
 ## Contributing
 
 1. Fork it ( http://github.com/<my-github-username>/cloudpad/fork )

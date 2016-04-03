@@ -37,6 +37,62 @@ module Cloudpad
         c.execute "sudo apt-get -y purge lxc-docker-*"
         c.execute "sudo apt-get -y purge docker-engine"
       end
+
+      def self.compute_container_changes(c)
+        changes = []
+        cts = c.fetch(:running_containers)
+        ctopts = c.fetch(:container_types)
+        hosts = c.fetch(:cloud).hosts
+        excs = []
+        atcs = {}
+        # determine expected containers
+        ctopts.each do |type, copts|
+          ic = copts[:instance_count] || 0
+          ifs = copts[:instance_flags] || []
+          hosts = copts[:hosts] || hosts.collect{|h| h.name}
+          if ifs.includes?(:count_per_host)
+            hosts.each do |h|
+              ic.times do |inst|
+                excs << {type: type, instance: inst, hosts: [h], accounted: false}
+              end
+            end
+          else
+            ic.times do |inst|
+              excs << {type: type, instance: inst, hosts: hosts, accounted: false}
+            end
+          end
+          # compile actual containers
+          cts.each do |c|
+            ck = "#{c.host}+#{c.type}+#{c.instance}"
+            atcs[ck] = {type: c.type, instance: c.instance, host: c.host, accounted: false}
+          end
+
+          # account containers
+          excs.each do |c|
+            c[:hosts].each do |h|
+              ck = "#{h}+#{c[:type]}+#{c[:instance]}"
+              if (atc = atcs[ck])
+                c[:accounted] = true
+                atc[:accounted] = true
+                break
+              end
+            end
+          end
+
+          # create unaccounted expected
+          excs.select{|c| c[:accounted] == false}.each do |c|
+            changes << {action: :create, spec: c}
+          end
+
+          # delete unaccounted actual
+          atcs.select{|c| c[:accounted] == false}.each do |c|
+            changes << {action: :delete, spec: c}
+          end
+
+          c.set :pending_container_changes, changes
+          return changes
+        end
+      end
       
 
     end

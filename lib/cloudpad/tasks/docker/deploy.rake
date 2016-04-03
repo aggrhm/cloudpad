@@ -157,6 +157,18 @@ namespace :docker do
     sh "ssh -t #{server.user}@#{server.hostname} ssh -t -i /tmp/container.key -o \\\"StrictHostKeyChecking no\\\" root@#{ci.ip_address}"
   end
 
+  ### MAINTAIN
+  task :maintain do
+    changes = Cloudpad::Docker::Context.compute_container_changes(self)
+    puts "#{changes.length} container changes needed:".yellow
+    changes.each do |c|
+      s = c[:spec]
+      str "- #{c[:action].upcase} #{s[:type]}-#{s[:instance]} on #{s[:hosts]}".green
+      str = c[:action] == :delete ? str.red : str.green
+      puts str
+    end
+  end
+
 
 end
 
