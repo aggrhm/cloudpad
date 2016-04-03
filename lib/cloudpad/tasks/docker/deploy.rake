@@ -160,11 +160,11 @@ namespace :docker do
   ### MAINTAIN
   task :maintain do
     changes = Cloudpad::Docker::Context.compute_container_changes(self)
-    puts "#{changes.length} container changes needed:".yellow
+    puts "#{changes.length} container changes needed.".yellow
     changes.each do |c|
       s = c[:spec]
-      str "- #{c[:action].upcase} #{s[:type]}-#{s[:instance]} on #{s[:hosts]}".green
-      str = c[:action] == :delete ? str.red : str.green
+      str = "- #{c[:action].upcase} #{s[:type]}-#{s[:instance]} on #{s[:hosts] || s[:host]}"
+      str = (c[:action].to_sym == :delete) ? str.red : str.green
       puts str
     end
   end
@@ -181,3 +181,5 @@ before "docker:update", "docker:check_running"
 before "docker:update", "docker:update_host_images"
 
 before "docker:ssh", "docker:check_running"
+
+before "docker:maintain", "docker:check_running"
