@@ -11,6 +11,10 @@ module Cloudpad
 
     # install puppet
     def self.ensure_puppet_installed(c)
+      # create config directory
+      if !File.directory?(puppet_path)
+        c.execute "mkdir -p #{puppet_path}"
+      end
       # check if puppet already installed
       if !c.is_package_installed?("puppet")
         c.info "Puppet not installed, installing..."

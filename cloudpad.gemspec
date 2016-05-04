@@ -21,6 +21,7 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "bundler", "~> 1.5"
   spec.add_development_dependency "rake"
   spec.add_dependency "capistrano", "3.2.1"
+  spec.add_dependency "sshkit", "~> 1.8.1"
   spec.add_dependency "colored"
   spec.add_dependency "faraday"
   spec.add_dependency "activesupport", "3.2.19"

@@ -25,7 +25,7 @@ module Cloudpad
         # check if configuration changed
         cflc = c.local_file_content(cfl, parse_erb: true)
         cfrc = c.remote_file_content(cfr)
-        if cflc && cflc != cfrc
+        if cflc && cflc.strip != cfrc.strip
           c.info "Docker configuration changed. Updating and restarting docker..."
           c.upload_string!(cflc, "/tmp/docker.conf")
           c.execute "sudo cp /tmp/docker.conf #{cfr}"

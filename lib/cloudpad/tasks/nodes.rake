@@ -28,6 +28,11 @@ namespace :nodes do
 
   task :provision do
 
+    # check if site.pp file exists
+    if !File.exists?(File.join(puppet_path, "manifests", "site.pp"))
+      next
+    end
+
     # update checksum for puppet dir
     update_directory_checksum(puppet_path)
     on roles(:all) do |host|
