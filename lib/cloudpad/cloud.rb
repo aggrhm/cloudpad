@@ -238,6 +238,7 @@ module Cloudpad
       cname = self.name
       cimg = "#{env.fetch(:registry)}/#{self.image_name}"
       fname = "--name #{cname}"
+      frst = "--restart=always"
       fports = self.ports.collect { |port|
         cp = port[:container]
         hp = port[:host]
@@ -254,7 +255,7 @@ module Cloudpad
       fenv = self.env_data.collect do |key, val|
         "--env #{key}=#{val}"
       end.join(" ")
-      return "#{fname} #{fports} #{fvols} #{fcenv} #{fenv} #{cimg}"
+      return "#{fname} #{frst} #{fports} #{fvols} #{fcenv} #{fenv} #{cimg}"
     end
 
     def start_command(env)
