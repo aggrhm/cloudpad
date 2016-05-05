@@ -127,9 +127,12 @@ module Cloudpad
           hosts = copts[:hosts] || cloud.hosts.collect{|h| h.name}
           image_id = images[copts[:image]][:latest_created]
           if ifls.include?(:count_per_host)
+            hinst = 0
+            inst = 0
             hosts.each do |h|
+              hinst = inst
               ic.times do |idx|
-                inst = idx + 1
+                inst = hinst + idx + 1
                 name = "#{app_key}.#{type}.#{inst}"
                 excs << {type: type, instance: inst, hosts: [h], name: name, image_id: image_id, accounted: false}
               end
