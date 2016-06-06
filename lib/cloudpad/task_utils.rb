@@ -26,7 +26,7 @@ module Cloudpad
       File.join root_path, "config"
     end
     def puppet_path
-      File.join config_path, "puppet"
+      File.join root_path, "puppet"
     end
 
     def prompt(question, default=nil)
