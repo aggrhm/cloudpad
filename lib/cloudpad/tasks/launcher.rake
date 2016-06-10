@@ -96,7 +96,7 @@ namespace :launcher do
     mod_dir = File.join puppet_path, "modules"
     run_locally do
       Cloudpad::Context.ensure_puppet_installed(self)
-      cmd = "sudo puppet module install #{mod_name} --target-dir #{mod_dir}"
+      cmd = "sudo puppet module install #{mod_name} --modulepath #{mod_dir}"
       cmd << " --version #{ver}" if ver
       execute cmd
     end
@@ -108,7 +108,7 @@ namespace :launcher do
     mod_dir = File.join puppet_path, "modules"
     run_locally do
       Cloudpad::Context.ensure_puppet_installed(self)
-      cmd = "sudo puppet module uninstall #{mod_name} --target-dir #{mod_dir}"
+      cmd = "sudo puppet module uninstall #{mod_name} --modulepath #{mod_dir}"
       cmd << " --version #{ver}" if ver
       execute cmd
     end
