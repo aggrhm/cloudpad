@@ -1,0 +1,237 @@
+#!/usr/bin/python3
+
+import argparse, urllib.request, json, os.path, sys, re, time, subprocess, logging
+from collections import OrderedDict
+
+opts = {}
+
+
+def start():
+	global opts
+	parser = argparse.ArgumentParser()
+	parser.add_argument("-t", "--template", help="Template to parse")
+	parser.add_argument("-s", "--service", help="Service to restart")
+	parser.add_argument("-k", "--signal", help="Killall signal", default="TERM")
+	parser.add_argument("-a", "--app", help="Application key")
+	parser.add_argument("-e", "--etcd_addr", help="Etcd ip:port", default="http://172.17.0.1:2379")
+	parser.add_argument("-i", "--interval", help="Polling interval", default=30)
+	parser.add_argument("-v", "--verbose", help="Verbose", action="store_true", default=False)
+	parser.add_argument("-l", "--log", help="Log path", default="/var/log/pyconfd.log")
+	args = parser.parse_args()
+
+	opts['template'] = args.template
+	opts['service'] = args.service
+	opts['app'] = args.app
+	opts['interval'] = args.interval
+	opts['etcd_addr'] = args.etcd_addr
+	opts['verbose'] = args.verbose
+	opts['log'] = args.log
+	opts['signal'] = args.signal
+
+	logging.basicConfig(filename=opts['log'], level=logging.DEBUG)
+
+	# check args
+	if not (opts['template'] and opts['service'] and opts['app']):
+		sys.exit("Must give a template, service, and app key.")
+
+	# check if template file exists
+	if not os.path.exists(opts['template']):
+		sys.exit("Template file does not exist.")
+
+	opts['output_file'] = opts['template'].replace(".tmpl", "")
+
+	# start loop
+	info("Starting...")
+	while(True):
+		update_files()
+		time.sleep(opts['interval'])
+
+
+def update_files():
+	cinfo = get_etcd_info('containers')
+	debug(cinfo)
+	if cinfo == None:
+		info("Could not access container information.\n")
+		return
+	cinfo_srt = OrderedDict(sorted(cinfo.items(), key=lambda t: t[0]))
+	ns = {'containers': cinfo_srt}
+
+	# build file and compare it to existing one
+	try:
+		tpl = Templite(read_file(opts['template']))
+		tpl_str = tpl.render(ns)
+	except:
+		info("An error occurred attempting to update your template\n")
+		return
+
+	of_str = read_file(opts['output_file'])
+	if tpl_str != of_str:
+		info("Container information changed. Updating {}.\n".format(opts['output_file']))
+		info(cinfo_srt)
+		# replace file
+		write_file(opts['output_file'], tpl_str)
+		# restart service
+		subprocess.call("killall -s {} {}".format(opts['signal'], opts['service']), shell=True)
+
+
+
+# loads information from etcd and returns a hash
+def get_etcd_info(key):
+	data = fetch_url("{}/v2/keys/{}/{}?recursive=true".format(opts['etcd_addr'], opts['app'], key))
+
+	# try to parse as json
+	try:
+		obj = json.loads(data)
+	except:
+		info("Could not parse etcd response.\n")
+		return None
+
+	# make sure it has containers entry and is directory
+	if not (('node' in obj) and ('dir' in obj['node'])):
+		info("Containers key not found / not directory")
+		return None
+
+	# check if directory has entries
+	if not ('nodes' in obj['node']):
+		return {}
+
+	# parse nodes into key value hash
+	cnodes = obj['node']['nodes']
+	ret = {}
+	parse_nodes(cnodes, ret)
+	return ret
+
+
+def parse_nodes(nodes, obj):
+	for node in nodes:
+		key = node['key']
+		skey = key[(key.rindex('/')+1):]
+		#print(nodes)
+		if 'dir' in node:
+			# node is directory
+			obj[skey] = {}
+			parse_nodes(node['nodes'], obj[skey])
+		else:
+			# node is regular value
+			val = node['value']
+			try:
+				js = json.loads(val)
+				val = js
+			finally:
+				obj[skey] = val
+
+def fetch_url(url):
+	try:
+		debug("Accessing data from {}.\n".format(url))
+		resp = urllib.request.urlopen(url)
+		data = resp.read().decode('utf-8')
+	except:
+		info("An error occurred fetching the URL.\n")
+		return None
+	return data
+
+def read_file(path):
+	if os.path.exists(path):
+		with open(path, "r") as fp:
+			data = fp.read()
+		return data
+	else:
+		return None
+
+def write_file(path, data):
+	with open(path, "w") as fp:
+		fp.write(data)
+
+def info(str):
+	logging.info(str)
+def debug(str):
+	if opts['verbose']:
+		logging.debug(str)
+
+#
+#				Templite+
+#				A light-weight, fully functional, general purpose templating engine
+#
+#				Copyright (c) 2009 joonis new media
+#				Author: Thimo Kraemer <thimo.kraemer@joonis.de>
+#
+#				Based on Templite by Tomer Filiba
+#				http://code.activestate.com/recipes/496702/
+#
+#				This program is free software; you can redistribute it and/or modify
+#				it under the terms of the GNU General Public License as published by
+#				the Free Software Foundation; either version 2 of the License, or
+#				(at your option) any later version.
+#
+#				This program is distributed in the hope that it will be useful,
+#				but WITHOUT ANY WARRANTY; without even the implied warranty of
+#				MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	See the
+#				GNU General Public License for more details.
+#
+#				You should have received a copy of the GNU General Public License
+#				along with this program; if not, write to the Free Software
+#				Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+#				MA 02110-1301, USA.
+#
+
+
+class Templite(object):
+		auto_emit = re.compile('(^[\'\"])|(^[a-zA-Z0-9_\[\]\'\"]+$)')
+
+		def __init__(self, template, start='${', end='}$'):
+				if len(start) != 2 or len(end) != 2:
+						raise ValueError('each delimiter must be two characters long')
+				delimiter = re.compile('%s(.*?)%s' % (re.escape(start), re.escape(end)), re.DOTALL)
+				offset = 0
+				tokens = []
+				for i, part in enumerate(delimiter.split(template)):
+						part = part.replace('\\'.join(list(start)), start)
+						part = part.replace('\\'.join(list(end)), end)
+						if i % 2 == 0:
+								if not part: continue
+								part = part.replace('\\', '\\\\').replace('"', '\\"')
+								part = '\t' * offset + 'emit("""%s""")' % part
+						else:
+								part = part.rstrip()
+								if not part: continue
+								if part.lstrip().startswith(':'):
+										if not offset:
+												raise SyntaxError('no block statement to terminate: ${%s}$' % part)
+										offset -= 1
+										part = part.lstrip()[1:]
+										if not part.endswith(':'): continue
+								elif self.auto_emit.match(part.lstrip()):
+										part = 'emit(%s)' % part.lstrip()
+								lines = part.splitlines()
+								margin = min(len(l) - len(l.lstrip()) for l in lines if l.strip())
+								part = '\n'.join('\t' * offset + l[margin:] for l in lines)
+								if part.endswith(':'):
+										offset += 1
+						tokens.append(part)
+				if offset:
+						raise SyntaxError('%i block statement(s) not terminated' % offset)
+				self.__code = compile('\n'.join(tokens), '<templite %r>' % template[:20], 'exec')
+
+		def render(self, __namespace=None, **kw):
+				"""
+				renders the template according to the given namespace.
+				__namespace - a dictionary serving as a namespace for evaluation
+				**kw - keyword arguments which are added to the namespace
+				"""
+				namespace = {}
+				if __namespace: namespace.update(__namespace)
+				if kw: namespace.update(kw)
+				namespace['emit'] = self.write
+
+				__stdout = sys.stdout
+				sys.stdout = self
+				self.__output = []
+				eval(self.__code, namespace)
+				sys.stdout = __stdout
+				return ''.join(self.__output)
+
+		def write(self, *args):
+				for a in args:
+						self.__output.append(str(a))
+
+start()
