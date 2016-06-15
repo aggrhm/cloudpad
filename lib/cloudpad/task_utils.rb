@@ -16,6 +16,9 @@ module Cloudpad
     def context_path
       File.join(Dir.pwd, "context")
     end
+    def context_extensions_path
+      File.join(Dir.pwd, "context", "ext")
+    end
     def cloud_path
       File.join(Dir.pwd, "config", "cloud")
     end

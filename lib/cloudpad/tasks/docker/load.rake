@@ -14,6 +14,7 @@ namespace :docker do
     set(:launcher_ip, local_ip) if fetch(:launcher_ip).nil?
     set(:registry, "#{local_ip}:5000") if fetch(:registry).nil?
     set(:etcd_client_url, "http://#{local_ip}:2379") if fetch(:etcd_client_url).nil?
+    set(:context_extensions, {}) if fetch(:context_extensions).nil?
 
     fetch(:images).each do |type, opts|
       opts[:name] ||= "#{app_key}-#{type}"
@@ -75,8 +76,28 @@ namespace :docker do
       },
       install_container_key: lambda {
         str = "RUN echo #{container_public_key} >> /root/.ssh/authorized_keys\n"
+      },
+      set_timezone_etc: lambda {
+        str = ""
+        str << "RUN echo \"Etc/UTC\" > /etc/timezone\n"
+        str << "RUN dpkg-reconfigure -f noninteractive tzdata\n"
+      },
+      disable_ssh_host_check: lambda {
+        str = "RUN echo \"Host *\\n\\tStrictHostKeyChecking no\\n\" >> /root/.ssh/config\n"
+      },
+      configure_basic_container: lambda {
+        str = dfi(:set_timezone_etc)
+        str << dfi(:disable_ssh_host_check)
       }
     }.merge(fetch(:dockerfile_helpers) || {})
+
+    fetch(:context_extensions).merge({
+      cloudpad: {path: Cloudpad.gem_context_path}
+    })
+
+    set :services, {
+      heartbeat: "/root/bin/heartbeat -a $APP_KEY -e #{fetch(:etcd_client_url)}",
+    }.merge(fetch(:services) || {})
 
     if ENV['group']
       grs = ENV['group'].split(',').collect(&:to_sym)
@@ -87,6 +108,7 @@ namespace :docker do
       ENV['type'] = types.collect(&:to_s).join(",")
       puts "Processing types: #{ENV['type']}...".yellow
     end
+
   end
 
 end

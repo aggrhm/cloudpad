@@ -1,0 +1,95 @@
+#!/usr/bin/python3
+#
+# Periodically update etcd with container information. Key must be set with a TTL.
+
+import argparse, urllib.request, urllib.parse, json, logging, sys, os, time
+
+opts = {}
+
+def start():
+	global opts
+	parser = argparse.ArgumentParser()
+	parser.add_argument("-a", "--app", help="Application key")
+	parser.add_argument("-i", "--interval", help="Update interval", default=30)
+	parser.add_argument("-e", "--etcd_addr", help="Etcd ip:port", default="http://172.17.0.1:2379")
+	parser.add_argument("-v", "--verbose", help="Verbose", action="store_true", default=False)
+	parser.add_argument("-l", "--log", help="Log path", default="/var/log/heartbeat.log")
+	parser.add_argument("-t", "--ttl", help="Time to live", default=40)
+
+	args = parser.parse_args()
+
+	opts['app'] = args.app
+	opts['interval'] = args.interval
+	opts['etcd_addr'] = args.etcd_addr
+	opts['verbose'] = args.verbose
+	opts['log'] = args.log
+	opts['ttl'] = args.ttl
+
+	logging.basicConfig(filename=opts['log'], level=logging.DEBUG)
+
+	if not (opts['app']):
+		info("Must give app key. Exiting.", stdout=True)
+		sys.exit()
+
+	ci = get_container_env()
+	if len(ci.keys()) == 0:
+		info("No container environment variables were found. Exiting.", stdout=True)
+		sys.exit()
+
+	info("Starting...")
+	while(True):
+		update_etcd(ci)
+		time.sleep(opts['interval'])
+
+
+def update_etcd(ci):
+	url = "{}/v2/keys/{}/containers/{}".format(opts['etcd_addr'], opts['app'], ci['name'])
+	val = json.dumps(ci)
+	resp = request_url(url, 'PUT', {'value': val, 'ttl': opts['ttl']})
+	if resp == None:
+		info("Could not report container information to etcd.")
+		return
+	debug("Updated container with {}".format(val))
+
+
+def get_container_env():
+	ret = {}
+	for key,val in os.environ.items():
+		if key.startswith("CNTR_"):
+			sk = key[5:].lower()
+			ret[sk] = val
+	return ret
+
+
+def request_url(url, method, data):
+	try:
+		params = urllib.parse.urlencode(data)
+		#params = urllib.parse.urlencode({'value': 'test'})
+		debug("Sending request to {} with data {}.".format(url, params))
+		req = urllib.request.Request(url=url, data=params.encode('utf-8'))
+		req.get_method = lambda: method
+		opener = urllib.request.build_opener(SmartRedirectHandler)
+		resp = opener.open(req)
+		resp_data = resp.read().decode('utf-8')
+	except ValueError:
+		info("An error occurred fetching the URL.")
+		return None
+	return resp_data
+
+
+def info(str, stdout=False):
+	logging.info(str)
+	if stdout:
+		sys.stdout.write("{}\n".format(str))
+def debug(str):
+	if opts['verbose']:
+		logging.debug(str)
+
+class SmartRedirectHandler(urllib.request.HTTPRedirectHandler):
+	def http_error_307(self, req, fp, code, msg, headers):
+		req.full_url = headers['Location']
+		resp = urllib.request.urlopen(req)
+		return resp
+
+
+start()

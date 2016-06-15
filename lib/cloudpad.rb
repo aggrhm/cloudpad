@@ -42,6 +42,10 @@ module Cloudpad
       puts "Node #{node.name} added."
     end
 
+    def self.gem_context_path
+      File.expand_path("../../context", __FILE__)
+    end
+
   end
 
 end

@@ -1,0 +1,29 @@
+#!/usr/bin/python3
+
+import subprocess, os, shutil, sys
+
+home_path = "/root/services"
+services = os.environ.get('CNTR_SERVICES')
+if services == None:
+	print("Installing all services from /root/services/ ...")
+	svs = []
+else:
+	print("Installing {} services in /root/services/...".format(services))
+	svs = services.split(',')
+
+if not os.path.isdir(home_path):
+	sys.exit()
+
+for fp in os.listdir(home_path):
+	sn = os.path.splitext(fp)[0]
+	if (len(svs) > 0) and (sn not in svs):
+		# need to check service name
+		continue
+
+	print("Installing service {}...".format(sn))
+	svp = "/etc/service/{}".format(sn)
+	if not os.path.isdir(svp):
+		os.makedirs(svp)
+	shutil.copy2("{}/{}".format(home_path, fp), "{}/run".format(svp))
+
+
