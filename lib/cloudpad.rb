@@ -7,6 +7,10 @@ require "active_support/core_ext"
 
 module Cloudpad
 
+  def self.gem_context_path
+    File.expand_path("../../context", __FILE__)
+  end
+
   module Context
 
     # install puppet
@@ -42,9 +46,6 @@ module Cloudpad
       puts "Node #{node.name} added."
     end
 
-    def self.gem_context_path
-      File.expand_path("../../context", __FILE__)
-    end
 
   end
 

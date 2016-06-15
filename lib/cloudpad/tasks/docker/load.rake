@@ -91,9 +91,7 @@ namespace :docker do
       }
     }.merge(fetch(:dockerfile_helpers) || {})
 
-    fetch(:context_extensions).merge({
-      cloudpad: {path: Cloudpad.gem_context_path}
-    })
+    fetch(:context_extensions)[:cloudpad] = {path: Cloudpad.gem_context_path}
 
     set :services, {
       heartbeat: "/root/bin/heartbeat -a $APP_KEY -e #{fetch(:etcd_client_url)}",

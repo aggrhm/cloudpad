@@ -53,13 +53,14 @@ namespace :docker do
     # make extensions dir
     sh "\\mkdir -p #{context_extensions_path}" if !File.directory?(context_extensions_path)
     ctx_exts = fetch(:context_extensions)
-    ctx_exts.each do |name, eopts|
+    ctx_exts.each do |name_sym, eopts|
+      name = name_sym.to_s
       # create path if doesn't exist
       ep = File.join(context_extensions_path, name)
       gep = eopts[:path]
       sh "\\mkdir -p #{ep}" if !File.directory?(ep)
       # check if paths are the same
-      if !system("\\diff -r -q #{gep} ep")
+      if !system("\\diff -r -q #{gep} #{ep}")
         sh "\\rm -rf #{ep}"
         sh "\\cp -a #{gep} #{ep}"
         puts "Updated context extension '#{name}'.".green
