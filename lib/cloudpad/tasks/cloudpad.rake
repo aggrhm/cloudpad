@@ -1,4 +1,4 @@
-namespace :docker do
+namespace :cloudpad do
 
   task :load do
     app_key = fetch(:app_key) || set(:app_key, "app")
@@ -15,6 +15,12 @@ namespace :docker do
     set(:registry, "#{local_ip}:5000") if fetch(:registry).nil?
     set(:etcd_client_url, "http://#{local_ip}:2379") if fetch(:etcd_client_url).nil?
     set(:context_extensions, {}) if fetch(:context_extensions).nil?
+    set(:container_env_vars, {}) if fetch(:container_env_vars).nil?
+
+    # process post settings blocks
+    post_settings_blocks.each do |blk|
+      blk.call
+    end
 
     fetch(:images).each do |type, opts|
       opts[:name] ||= "#{app_key}-#{type}"
@@ -22,6 +28,8 @@ namespace :docker do
     fetch(:container_types).each do |type, opts|
       opts[:image] ||= type.to_sym
     end
+
+    fetch(:container_env_vars)['APP_KEY'] ||= :app_key
 
     set :running_containers, []
     set :dockerfile_helpers, {
@@ -112,6 +120,6 @@ namespace :docker do
 end
 
 Capistrano::DSL.stages.each do |stage|
-  after stage, 'docker:load'
+  after stage, 'cloudpad:load'
 end
 

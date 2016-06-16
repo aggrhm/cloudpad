@@ -7,6 +7,14 @@ module Cloudpad
       set(key, block)
     end
 
+    def post_settings_blocks
+      @blocks ||= []
+    end
+
+    def with_settings(&block)
+      post_settings_blocks << block
+    end
+
     def root_path
       Dir.pwd
     end
@@ -49,6 +57,31 @@ module Cloudpad
 
     def clear_cache
       "RUN echo \"#{Time.now.to_s}\""
+    end
+
+    def image(name, opts)
+      s = (fetch(:images)[name.to_sym] ||= {})
+      s.merge!(opts)
+    end
+    def container_type(name, opts)
+      s = (fetch(:container_types)[name.to_sym] ||= {})
+      s.merge!(opts)
+    end
+    def repo(name, opts)
+      s = (fetch(:repos)[name.to_sym] ||= {})
+      s.merge!(opts)
+    end
+    def service(name, opts)
+      s = (fetch(:services)[name.to_sym] ||= {})
+      s.merge!(opts)
+    end
+    def dockerfile_helper(name, opts)
+      s = (fetch(:dockerfile_helpers)[name.to_sym] ||= {})
+      s.merge!(opts)
+    end
+    def container_env_var(name, var)
+      s = (fetch(:container_env_vars)[name.to_sym] ||= {})
+      s.merge!(opts)
     end
 
     def image_opts

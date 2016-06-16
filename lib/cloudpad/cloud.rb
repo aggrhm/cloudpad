@@ -230,8 +230,15 @@ module Cloudpad
       return ret
     end
 
-    def env_data
-      options[:env] || {}
+    def env_data(ctx=nil)
+      ret = options[:env] || {}
+      if ctx
+        vars = ctx.fetch(:container_env_vars)
+        vars.each do |nm, var|
+          e[nm] = ctx.fetch(var)
+        end
+      end
+      return ret
     end
 
     def run_args(env)
@@ -252,14 +259,14 @@ module Cloudpad
       fcenv = self.container_env_data.collect do |key, val|
         "--env CNTR_#{key.upcase}=#{val}"
       end.join(" ")
-      fenv = self.env_data.collect do |key, val|
+      fenv = self.env_data(env).collect do |key, val|
         "--env #{key}=#{val}"
       end.join(" ")
       return "#{fname} #{frst} #{fports} #{fvols} #{fcenv} #{fenv} #{cimg}"
     end
 
     def start_command(env)
-      "sudo docker run -d --env APP_KEY=#{app_key} #{run_args(env)}"
+      "sudo docker run -d #{run_args(env)}"
     end
 
     def stop_command(env)

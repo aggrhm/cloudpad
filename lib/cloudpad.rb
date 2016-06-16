@@ -53,6 +53,7 @@ end
 
 include Cloudpad::TaskUtils
 
+load File.expand_path("../cloudpad/tasks/cloudpad.rake", __FILE__)
 load File.expand_path("../cloudpad/tasks/app.rake", __FILE__)
 load File.expand_path("../cloudpad/tasks/launcher.rake", __FILE__)
 load File.expand_path("../cloudpad/tasks/nodes.rake", __FILE__)
