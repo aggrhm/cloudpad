@@ -16,6 +16,7 @@ namespace :cloudpad do
     set(:etcd_client_url, "http://#{local_ip}:2379") if fetch(:etcd_client_url).nil?
     set(:context_extensions, {}) if fetch(:context_extensions).nil?
     set(:container_env_vars, {}) if fetch(:container_env_vars).nil?
+    set(:puppet_modules, {}) if fetch(:puppet_modules).nil?
 
     # process post settings blocks
     # could potentially create new task called 'post_settings' to be ran after load.
