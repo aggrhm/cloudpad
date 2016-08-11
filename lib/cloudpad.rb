@@ -32,6 +32,22 @@ module Cloudpad
       end
     end
 
+    def self.ensure_puppet_modules_installed(c)
+      module_config = c.fetch(:puppet_modules)
+      # get currently installed modules
+      installed_modules = {}
+      Dir.glob(File.join(c.puppet_path, "modules", "*", "metadata.json")).each {|json|
+        data = JSON.parse(json)
+        installed_modules[data["name"]] = data
+      }
+      mod_dir = File.join c.puppet_path, "modules"
+      module_config.each do |mod_name, ver|
+        next if !installed_modules[mod_name].nil?
+        cmd = "sudo puppet module install #{mod_name} --modulepath #{mod_dir} --version #{ver}"
+        c.execute cmd
+      end
+    end
+
     def self.prompt_add_node(c, opts={})
       cloud = c.fetch(:cloud)
       node = Cloudpad::Node.new

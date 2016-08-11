@@ -87,18 +87,7 @@ namespace :launcher do
   task :ensure_puppet do
     run_locally do
       Cloudpad::Context.ensure_puppet_installed(self)
-    end
-  end
-
-  task :install_puppet_module do
-    mod_name = ENV['module'] || ENV['name']
-    ver = ENV['version']
-    mod_dir = File.join puppet_path, "modules"
-    run_locally do
-      Cloudpad::Context.ensure_puppet_installed(self)
-      cmd = "sudo puppet module install #{mod_name} --modulepath #{mod_dir}"
-      cmd << " --version #{ver}" if ver
-      execute cmd
+      Cloudpad::Context.ensure_puppet_modules_installed(self)
     end
   end
 
