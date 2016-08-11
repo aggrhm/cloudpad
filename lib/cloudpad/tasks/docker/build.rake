@@ -3,8 +3,8 @@ namespace :docker do
   ### UPDATE_REPOS
   desc "Update code for docker containers"
   task :update_repos do
-    next if ENV['skip_update_repos'].to_i == 1
-    run_scripts = ENV['run_repo_scripts'].to_i == 1
+    next if parse_env('skip_update_repos')
+    run_scripts = parse_env('run_repo_scripts')
     FileUtils.mkdir_p(repos_path)
     repos = fetch(:repos)
     filtered_repo_names.each do |name|
@@ -124,9 +124,36 @@ namespace :docker do
     end
   end
 
+  ### CACHE_REPO_GEMFILES
+  task :cache_repo_gemfiles do
+    repos = fetch(:repos)
+    filtered_repo_names.each do |rn_sym|
+      repo_name = rn_sym.to_s
+      if repo_name.nil? || (repo = repos[rn_sym]).nil?
+        puts "Repo '#{repo_name}' not found.".red
+        next
+      end
+      # check for Gemfile
+      gfp = File.join(context_path, "src", repo_name, "Gemfile")
+      glp = File.join(context_path, "src", repo_name, "Gemfile.lock")
+
+      if File.exists?(gfp) && File.exists?(glp)
+        ngfp = File.join(context_path, "conf", "#{repo_name}_gemfile")
+        nglp = File.join(context_path, "conf", "#{repo_name}_gemfile.lock")
+        sh "\\cp #{gfp} #{ngfp}"
+        sh "\\cp #{glp} #{nglp}"
+        puts "Gemfiles cached in conf directory.".green
+      else
+        puts "Gemfile for repo not found.".red
+      end
+    end
+  end
+
+
 end
 
 before "docker:build", "docker:update_context_extensions"
 before "docker:build", "docker:update_repos"
+before "docker:cache_repo_gemfiles", "docker:update_repos"
 after "docker:build", "docker:push_images"
 

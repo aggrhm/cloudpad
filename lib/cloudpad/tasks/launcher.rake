@@ -114,28 +114,6 @@ namespace :launcher do
     end
   end
 
-  task :cache_repo_gemfiles do
-    repo_name = ENV['repo']
-    repos = fetch(:repos)
-    if repo_name.nil? || (repo = repos[repo_name.to_sym]).nil?
-      puts "Repo '#{repo_name}' not found.".red
-      next
-    end
-    # check for Gemfile
-    gfp = File.join(context_path, "src", repo_name, "Gemfile")
-    glp = File.join(context_path, "src", repo_name, "Gemfile.lock")
-
-    if File.exists?(gfp) && File.exists?(glp)
-      ngfp = File.join(context_path, "conf", "#{repo_name}_gemfile")
-      nglp = File.join(context_path, "conf", "#{repo_name}_gemfile.lock")
-      sh "\\cp #{gfp} #{ngfp}"
-      sh "\\cp #{glp} #{nglp}"
-      puts "Gemfiles cached in conf directory.".green
-    else
-      puts "Gemfile for repo not found.".red
-    end
-  end
-
   task :clean do
     run_locally do
       execute "sudo docker rmi $(sudo docker images -q --filter \"dangling=true\")"
@@ -160,14 +138,6 @@ namespace :launcher do
         name: "launcher:ensure_registry",
         desc: "Ensure registry running on launching host",
         group: "Launcher"
-      },
-      {
-        name: "launcher:cache_repo_gemfiles",
-        desc: "Cache gemfiles in context directory for repository",
-        group: "Launcher",
-        options: [
-          {flag: "repo", desc: "The repository to cache"}
-        ]
       },
       {
         name: "launcher:clean",
@@ -210,6 +180,14 @@ namespace :launcher do
         desc: "Build images, stop containers, and restart with new images",
         group: "Docker",
         options: []
+      },
+      {
+        name: "docker:cache_repo_gemfiles",
+        desc: "Cache gemfiles in context directory for repository",
+        group: "Docker",
+        options: [
+          {flag: "repo", desc: "The repository to cache"}
+        ]
       },
       # hosts
       {

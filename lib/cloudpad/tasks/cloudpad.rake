@@ -18,6 +18,8 @@ namespace :cloudpad do
     set(:container_env_vars, {}) if fetch(:container_env_vars).nil?
 
     # process post settings blocks
+    # could potentially create new task called 'post_settings' to be ran after load.
+    # any extensions would need to run their code before 'post_settings'.
     post_settings_blocks.each do |blk|
       blk.call
     end
@@ -30,6 +32,7 @@ namespace :cloudpad do
     end
 
     fetch(:container_env_vars)['APP_KEY'] ||= :app_key
+    fetch(:container_env_vars)['ETCD_CLIENT_URL'] ||= :etcd_client_url
 
     set :running_containers, []
     set :dockerfile_helpers, {
@@ -40,7 +43,7 @@ namespace :cloudpad do
           has_lock = File.exists?( File.join(context_path, "#{gf}.lock") )
           str = "ADD #{gf} /tmp/Gemfile\n"
           str << "ADD #{gf}.lock /tmp/Gemfile.lock\n" if has_lock
-          str << "RUN bundle install #{has_lock ? "--frozen" : ""} --system --gemfile /tmp/Gemfile\n"
+          str << "RUN bundle install #{has_lock ? "--frozen" : ""} --system --jobs 4 --gemfile /tmp/Gemfile\n"
         end
         str
       },

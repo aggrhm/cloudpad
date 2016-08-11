@@ -71,13 +71,11 @@ module Cloudpad
       s = (fetch(:repos)[name.to_sym] ||= {})
       s.merge!(opts)
     end
-    def service(name, opts)
-      s = (fetch(:services)[name.to_sym] ||= {})
-      s.merge!(opts)
+    def service(name, val)
+      fetch(:services)[name.to_sym] = val
     end
-    def dockerfile_helper(name, opts)
-      s = (fetch(:dockerfile_helpers)[name.to_sym] ||= {})
-      s.merge!(opts)
+    def dockerfile_helper(name, val)
+      fetch(:dockerfile_helpers)[name.to_sym] = val
     end
     def container_env_var(name, var)
       s = (fetch(:container_env_vars)[name.to_sym] ||= {})
@@ -170,16 +168,21 @@ module Cloudpad
     end
 
     def filtered_repo_names
-      repos = fetch(:repos)
-      images = fetch(:images)
-      return filtered_image_types.collect{|t| 
-        rs = images[t][:repos]
-        if rs
-          rs.keys
-        else
-          []
-        end
-      }.flatten.uniq
+      rv = parse_env('repo') || parse_env('repos')
+      if rv
+        return rv.split(',').collect(&:to_sym)
+      else
+        repos = fetch(:repos)
+        images = fetch(:images)
+        return filtered_image_types.collect{|t| 
+          rs = images[t][:repos]
+          if rs
+            rs.keys
+          else
+            []
+          end
+        }.flatten.uniq
+      end
     end
 
     def docker_version_meta

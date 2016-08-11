@@ -235,7 +235,7 @@ module Cloudpad
       if ctx
         vars = ctx.fetch(:container_env_vars)
         vars.each do |nm, var|
-          e[nm] = ctx.fetch(var)
+          ret[nm] = ctx.fetch(var)
         end
       end
       return ret
