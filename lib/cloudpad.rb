@@ -36,8 +36,8 @@ module Cloudpad
       module_config = c.fetch(:puppet_modules)
       # get currently installed modules
       installed_modules = {}
-      Dir.glob(File.join(c.puppet_path, "modules", "*", "metadata.json")).each {|json|
-        data = JSON.parse(json)
+      Dir.glob(File.join(c.puppet_path, "modules", "*", "metadata.json")).each {|fp|
+        data = JSON.parse(File.read(fp))
         installed_modules[data["name"]] = data
       }
       mod_dir = File.join c.puppet_path, "modules"
