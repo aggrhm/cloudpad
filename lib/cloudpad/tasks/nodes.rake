@@ -69,3 +69,5 @@ end
 Capistrano::DSL.stages.each do |stage|
   after stage, 'nodes:load'
 end
+
+before "nodes:provision", "launcher:ensure_puppet"
