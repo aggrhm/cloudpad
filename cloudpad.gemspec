@@ -24,5 +24,5 @@ Gem::Specification.new do |spec|
   spec.add_dependency "sshkit", "~> 1.8.1"
   spec.add_dependency "colored"
   spec.add_dependency "faraday"
-  spec.add_dependency "activesupport", "3.2.19"
+  spec.add_dependency "activesupport", "3.2.22"
 end
