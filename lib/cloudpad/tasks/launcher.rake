@@ -104,8 +104,9 @@ namespace :launcher do
   end
 
   task :clean do
+    puts "Cleaning local docker images...".yellow
     run_locally do
-      execute "sudo docker rmi $(sudo docker images -q --filter \"dangling=true\")"
+      Cloudpad::Docker::Context.clean_images(self)
     end
   end
 

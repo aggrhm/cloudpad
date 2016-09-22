@@ -90,8 +90,9 @@ namespace :hosts do
   end
 
   task :clean do
+    puts "Cleaning host docker images...".yellow
     on roles(:host) do
-      execute "sudo docker rmi $(sudo docker images -q --filter \"dangling=true\")"
+      Cloudpad::Docker::Context.clean_images(self)
     end
   end
 

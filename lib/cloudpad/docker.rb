@@ -43,6 +43,7 @@ module Cloudpad
         c.on(c.roles(:host)) do |server|
           host = server.properties.source
           host.status[:free_mem] = capture("free -m | grep Mem | awk '{print $4}'").to_i
+          host.status[:free_root_disk] = (capture("df -k / | tail -n 1 | awk '{print $4}'").to_i / 1024.0 / 1024.0).round(1)
           ids = capture("sudo docker ps -q").strip
           if ids.length > 0
             hd = capture("sudo docker inspect $(sudo docker ps -q)")
@@ -93,6 +94,17 @@ module Cloudpad
         c.fetch(:cloud).hosts.each do |host|
           cs = c.containers_on_host(host)
           puts "- #{host.name}: #{cs.length} containers running | #{host.status[:free_mem]} MB RAM free".green
+          if host.status[:free_root_disk] < 1
+            puts "Warning: #{host.name} disk space remaining: #{host.status[:free_root_disk]} GB".red
+          end
+        end
+        # check launcher
+        launcher_root_free = nil
+        run_locally do
+          launcher_root_free = (capture("df -k / | tail -n 1 | awk '{print $4}'").to_i / 1024.0 / 1024.0).round(1)
+        end
+        if launcher_root_free && launcher_root_free < 1
+          puts "Warning: Launcher disk space remaining: #{launcher_root_free} GB".red
         end
         return containers
 
@@ -109,6 +121,10 @@ module Cloudpad
             iopts[:latest_created] = info["Created"]
           end
         end
+      end
+
+      def self.clean_images(c)
+        c.execute "sudo docker images --quiet --filter=dangling=true | sudo xargs --no-run-if-empty docker rmi"
       end
 
       def self.compute_container_changes(c)
