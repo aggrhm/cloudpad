@@ -103,7 +103,7 @@ namespace :cloudpad do
         str << dfi(:disable_ssh_host_check)
       },
       download_static_file: lambda {|path|
-        str = "RUN wget #{static_server_url}/#{path}\n"
+        str = "RUN wget #{fetch(:static_server_url)}/#{path}\n"
       }
     }.merge(fetch(:dockerfile_helpers) || {})
 
