@@ -98,3 +98,4 @@ namespace :hosts do
 
 end
 
+after "nodes:provision", "hosts:provision"
