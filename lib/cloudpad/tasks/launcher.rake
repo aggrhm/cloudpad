@@ -19,6 +19,7 @@ namespace :launcher do
     invoke "launcher:ensure_registry"
     invoke "launcher:ensure_etcd"
     invoke "launcher:ensure_puppet"
+    invoke "launcher:ensure_nginx_static"
   end
 
   task :ensure_ntp do
@@ -59,6 +60,17 @@ namespace :launcher do
         execute "sudo docker run -d -p 5000:5000 --restart=always --name=registry registry:2"
       else
         execute "sudo docker start registry"
+      end
+    end
+  end
+
+  task :ensure_nginx_static do
+    next if !File.directory?(static_path)
+    run_locally do
+      if !container_running?("nginx-static")
+        execute "sudo docker run --restart=always --name nginx-static -v #{static_path}:/usr/share/nginx/html:ro -p 8080:80 -d nginx:1.11"
+      else
+        execute "sudo docker start nginx-static"
       end
     end
   end

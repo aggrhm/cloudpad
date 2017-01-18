@@ -39,6 +39,9 @@ module Cloudpad
     def puppet_path
       File.join root_path, "puppet"
     end
+    def static_path
+      File.join root_path, "static"
+    end
 
     def prompt(question, default=nil)
       def_str = default ? " [#{default}] " : " "

@@ -14,6 +14,7 @@ namespace :cloudpad do
     set(:launcher_ip, local_ip) if fetch(:launcher_ip).nil?
     set(:registry, "#{local_ip}:5000") if fetch(:registry).nil?
     set(:etcd_client_url, "http://#{local_ip}:2379") if fetch(:etcd_client_url).nil?
+    set(:static_server_url, "http://#{local_ip}:8080") if fetch(:static_server_url).nil?
     set(:context_extensions, {}) if fetch(:context_extensions).nil?
     set(:container_env_vars, {}) if fetch(:container_env_vars).nil?
     set(:puppet_modules, {}) if fetch(:puppet_modules).nil?
@@ -100,6 +101,9 @@ namespace :cloudpad do
       configure_basic_container: lambda {
         str = dfi(:set_timezone_etc)
         str << dfi(:disable_ssh_host_check)
+      },
+      download_static_file: lambda {|path|
+        str = "RUN wget #{static_server_url}/#{path}\n"
       }
     }.merge(fetch(:dockerfile_helpers) || {})
 
