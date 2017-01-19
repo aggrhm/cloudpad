@@ -54,7 +54,7 @@ def update_files():
 		info("Could not access container information.\n")
 		return
 	cinfo_srt = OrderedDict(sorted(cinfo.items(), key=lambda t: t[0]))
-        ns = {'containers': cinfo_srt, 'env': dict(os.environ)}
+	ns = {'containers': cinfo_srt, 'env': dict(os.environ)}
 
 	# build file and compare it to existing one
 	try:
