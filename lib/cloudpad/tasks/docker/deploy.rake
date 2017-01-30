@@ -139,6 +139,7 @@ before "docker:update", "docker:check_running"
 before "docker:update", "docker:update_host_images"
 
 before "docker:ssh", "docker:check_running"
+before "docker:shell", "docker:check_running"
 
 before "docker:maintain", "docker:check_launcher_images"
 before "docker:maintain", "docker:check_running"
