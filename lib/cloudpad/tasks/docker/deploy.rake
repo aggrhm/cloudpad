@@ -94,6 +94,18 @@ namespace :docker do
     sh "ssh -t #{server.user}@#{server.hostname} ssh -t -i /tmp/container.key -o \\\"StrictHostKeyChecking no\\\" root@#{ci.ip_address}"
   end
 
+  ### SHELL
+  task :shell do
+    name = ENV['name']
+    ci = container_with_name(name)
+    if ci.nil?
+      puts "Container #{name} not found.".red
+      next
+    end
+    server = server_running_container(ci)
+    sh "ssh -t #{server.user}@#{server.hostname} sudo docker exec -i -t #{name} /bin/bash"
+  end
+
   ### MAINTAIN
   task :maintain do
     noop = parse_env("noop")
