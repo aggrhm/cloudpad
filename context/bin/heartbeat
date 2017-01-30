@@ -15,6 +15,7 @@ def start():
 	parser.add_argument("-v", "--verbose", help="Verbose", action="store_true", default=False)
 	parser.add_argument("-l", "--log", help="Log path", default="/var/log/heartbeat.log")
 	parser.add_argument("-t", "--ttl", help="Time to live", default=40)
+	parser.add_argument("-r", "--ready_file", help="Ready file")
 
 	args = parser.parse_args()
 
@@ -24,6 +25,7 @@ def start():
 	opts['verbose'] = args.verbose
 	opts['log'] = args.log
 	opts['ttl'] = args.ttl
+	opts['ready_file'] = args.ready_file
 
 	logging.basicConfig(filename=opts['log'], level=logging.DEBUG)
 
@@ -38,7 +40,10 @@ def start():
 
 	info("Starting...")
 	while(True):
-		update_etcd(ci)
+		if (opts.get('ready_file') == None) or os.path.exists(opts['ready_file']):
+			update_etcd(ci)
+		else:
+			info("The ready file does not exist yet.")
 		time.sleep(opts['interval'])
 
 

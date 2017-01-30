@@ -80,6 +80,13 @@ module Cloudpad
     def dockerfile_helper(name, val)
       fetch(:dockerfile_helpers)[name.to_sym] = val
     end
+    def container_env_vars(*vars)
+      cvs = fetch(:container_env_vars)
+      vars.flatten.each do |v|
+        cvs[v.upcase] = v
+      end
+      return cvs
+    end
     def container_env_var(name, var)
       s = (fetch(:container_env_vars)[name.to_sym] ||= {})
       s.merge!(opts)
