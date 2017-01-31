@@ -23,16 +23,30 @@ namespace :docker do
       else
         # dir already exists, do a checkout and pull
         puts "Updating #{name} repository...".yellow
+
         # if commits differ, need to merge and run update commands
-        local_rev = `cd #{rp} && git ls-remote --heads . #{rb}`
-        remote_rev = `cd #{rp} && git ls-remote --heads origin #{rb}`
+        `cd #{rp} && git fetch origin`
+        local_rev = `cd #{rp} && git rev-parse HEAD`
+        remote_rev = rb
+
+        remote_rev_cmd = "cd #{rp} && git rev-parse origin/#{remote_rev}"
+        direct_rev_cmd = "cd #{rp} && git rev-parse #{remote_rev}"
+
+        if system(remote_rev_cmd)
+          # if the rev is remotely interpretable, use it that way (origin/master)
+          remote_rev = `#{remote_rev_cmd}`
+        elsif system(direct_rev_cmd)
+          # try directly interpreting the rev
+          remote_rev = `#{direct_rev_cmd}`
+        else
+          raise StandardError, "can't resolve #{remote_rev} into a SHA1"
+        end
+
         if local_rev != remote_rev
           puts "Code updating...".yellow
-          sh "cd #{rp} && git fetch origin #{rb}:refs/remotes/origin/#{rb}"
-          sh "cd #{rp} && git checkout #{rb} && git merge origin/#{rb}"
+          sh "cd #{rp} && git checkout #{remote_rev}"
           is_new = true
         else
-          sh "cd #{rp} && git checkout #{rb}"
           puts "Code is up to date.".green
           is_new = false
         end
