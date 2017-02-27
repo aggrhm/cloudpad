@@ -100,6 +100,12 @@ namespace :launcher do
     run_locally do
       Cloudpad::Context.ensure_puppet_installed(self)
       Cloudpad::Context.ensure_puppet_modules_installed(self)
+      # apply manifest
+      mf = File.join(puppet_path, "manifests", "site.pp")
+      if File.exists?(mf)
+        mp = File.join(puppet_path, "modules")
+        execute "sudo puppet apply --logdest syslog --modulepath #{mp} --verbose #{mf}"
+      end
     end
   end
 
