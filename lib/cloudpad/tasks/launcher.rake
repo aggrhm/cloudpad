@@ -98,6 +98,10 @@ namespace :launcher do
 
   task :ensure_puppet do
     run_locally do
+      # create config directory
+      if !File.directory?(puppet_path)
+        execute "mkdir -p #{puppet_path}"
+      end
       Cloudpad::Context.ensure_puppet_installed(self)
       Cloudpad::Context.ensure_puppet_modules_installed(self)
       # apply manifest

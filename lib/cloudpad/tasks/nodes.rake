@@ -52,10 +52,11 @@ namespace :nodes do
         end
         copy_directory puppet_path, "/tmp/puppet_config"
         execute "sudo mv /tmp/puppet_config /etc/puppet"
-        execute "sudo puppet apply --logdest syslog --verbose /etc/puppet/manifests/site.pp"
       else
         info "Puppet configuration up-to-date."
       end
+      # call apply
+      execute "sudo puppet apply --logdest syslog --verbose /etc/puppet/manifests/site.pp"
     end
 
   end
