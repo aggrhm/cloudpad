@@ -20,7 +20,7 @@ module Cloudpad
         c.execute "mkdir -p #{puppet_path}"
       end
       # check if puppet already installed
-      if !c.is_package_installed?("puppet") && !c.is_package_installed("puppet-agent")
+      if !c.is_package_installed?("puppet") && !c.is_package_installed?("puppet-agent")
         c.info "Puppet not installed, installing..."
         c.execute "wget -O /tmp/puppetlabs.deb http://apt.puppetlabs.com/puppetlabs-release-pc1-`lsb_release -cs`.deb"
         c.execute "sudo dpkg -i /tmp/puppetlabs.deb"
