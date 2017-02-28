@@ -46,9 +46,9 @@ module Cloudpad
 
     def self.puppet_apply(c, opts={})
       pbp = c.remote_file_exists?("/opt/puppetlabs/bin/puppet") ? "/opt/puppetlabs/bin/puppet" : "/usr/bin/puppet"
-      mp = opts[:module_path] ? "--modulepath #{opts[:module_path]}" : ""
+      mp = opts[:module_path] || "/etc/puppet/modules"
       mf = opts[:manifest] || "/etc/puppet/manifests/site.pp"
-      cmd = "sudo #{pbp} apply --logdest syslog #{mp} --verbose #{mf}"
+      cmd = "sudo #{pbp} apply --logdest syslog --modulepath #{mp} --verbose #{mf}"
       c.execute cmd
     end
 
