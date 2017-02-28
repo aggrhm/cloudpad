@@ -56,7 +56,7 @@ namespace :nodes do
         info "Puppet configuration up-to-date."
       end
       # call apply
-      execute "sudo puppet apply --logdest syslog --verbose /etc/puppet/manifests/site.pp"
+      Cloudpad::Context.puppet_apply(self)
     end
 
   end

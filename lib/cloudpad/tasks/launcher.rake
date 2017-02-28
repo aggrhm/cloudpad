@@ -108,7 +108,7 @@ namespace :launcher do
       mf = File.join(puppet_path, "manifests", "site.pp")
       if File.exists?(mf)
         mp = File.join(puppet_path, "modules")
-        execute "sudo puppet apply --logdest syslog --modulepath #{mp} --verbose #{mf}"
+        Cloudpad::Context.puppet_apply(self, manifest: mf, module_path: mp)
       end
     end
   end
