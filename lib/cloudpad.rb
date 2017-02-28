@@ -39,14 +39,13 @@ module Cloudpad
       mod_dir = File.join c.puppet_path, "modules"
       module_config.each do |mod_name, ver|
         next if !installed_modules[mod_name].nil?
-        pbp = c.capture("which puppet").strip
-        cmd = "sudo #{pbp} module install #{mod_name} --modulepath #{mod_dir} --version #{ver}"
+        cmd = "sudo puppet module install #{mod_name} --modulepath #{mod_dir} --version #{ver}"
         c.execute cmd
       end
     end
 
     def self.puppet_apply(c, opts={})
-      pbp = c.capture("which puppet").strip
+      pbp = c.remote_file_exists?("/opt/puppetlabs/bin/puppet") ? "/opt/puppetlabs/bin/puppet" : "/usr/bin/puppet"
       mp = opts[:module_path] ? "--modulepath #{opts[:module_path]}" : ""
       mf = opts[:manifest] || "/etc/puppet/manifests/site.pp"
       cmd = "sudo #{pbp} apply --logdest syslog #{mp} --verbose #{mf}"
