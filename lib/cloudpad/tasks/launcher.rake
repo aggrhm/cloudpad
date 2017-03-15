@@ -20,6 +20,7 @@ namespace :launcher do
     invoke "launcher:ensure_etcd"
     invoke "launcher:ensure_puppet"
     invoke "launcher:ensure_nginx_static"
+    invoke "launcher:ensure_grafana"
   end
 
   task :ensure_ntp do
@@ -60,6 +61,16 @@ namespace :launcher do
         execute "sudo docker run -d -p 5000:5000 --restart=always --name=registry registry:2"
       else
         execute "sudo docker start registry"
+      end
+    end
+  end
+
+  task :ensure_grafana do
+    run_locally do
+      if !container_running?("grafana")
+        execute "sudo docker run -d -p 3000:3000 --restart=always --name=registry -v /var/lib/grafana:/var/lib/grafana grafana/grafana"
+      else
+        execute "sudo docker start grafana"
       end
     end
   end
