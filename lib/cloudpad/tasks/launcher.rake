@@ -135,6 +135,13 @@ namespace :launcher do
       execute cmd
     end
   end
+  
+  ### SHELL
+  task :shell do
+    name = ENV['name']
+    sh "sudo docker exec -i -t #{name} /bin/bash"
+  end
+
 
   task :clean do
     puts "Cleaning local docker images...".yellow
