@@ -20,7 +20,6 @@ namespace :launcher do
     invoke "launcher:ensure_etcd"
     invoke "launcher:ensure_puppet"
     invoke "launcher:ensure_nginx_static"
-    invoke "launcher:ensure_grafana"
   end
 
   task :ensure_ntp do
