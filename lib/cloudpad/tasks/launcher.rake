@@ -68,7 +68,7 @@ namespace :launcher do
   task :ensure_grafana do
     run_locally do
       if !container_running?("grafana")
-        execute "sudo docker run -d -p 3000:3000 --restart=always --name=registry -v /var/lib/grafana:/var/lib/grafana grafana/grafana"
+        execute "sudo docker run -d -p 3000:3000 --restart=always --name=grafana -v /var/lib/grafana:/var/lib/grafana grafana/grafana"
       else
         execute "sudo docker start grafana"
       end
