@@ -273,6 +273,20 @@ module Cloudpad
       "sudo docker stop #{name} && sudo docker rm #{name}"
     end
 
+    def to_hash
+      ret = {}
+      ret[:name] = name
+      ret[:host] = host
+      ret[:instance] = instance
+      ret[:type] = type
+      ret[:options] = options
+      ret[:meta] = meta
+      ret[:app_key] = app_key
+      ret[:state] = state
+      ret[:ip_address] = ip_address
+      return ret
+    end
+
   end
 
 end

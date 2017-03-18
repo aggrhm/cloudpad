@@ -149,6 +149,16 @@ namespace :launcher do
     end
   end
 
+  task :write_status do
+    file = ENV['file'] || File.join(root_path, "status.json")
+    containers = fetch(:running_containers)
+    data = {
+      running_containers: containers.collect{|c| c.to_hash}
+    }
+    File.write(file, data.to_json)
+    puts "Status written to #{file}.".green
+  end
+
   task :list_commands do
 
     commands = [
@@ -256,3 +266,5 @@ namespace :launcher do
   end
 
 end
+
+before "launcher:write_status", "docker:check_running"
