@@ -1,5 +1,6 @@
 require 'yaml'
 require 'fileutils'
+require 'shellwords'
 
 module Cloudpad
 
@@ -260,7 +261,8 @@ module Cloudpad
         "--env CNTR_#{key.upcase}=#{val}"
       end.join(" ")
       fenv = self.env_data(env).collect do |key, val|
-        "--env #{key}=#{val}"
+        qval = Shellwords.escape(val)
+        "--env #{key}=#{qval}"
       end.join(" ")
       return "#{fname} #{frst} #{fports} #{fvols} #{fcenv} #{fenv} #{cimg}"
     end

@@ -61,9 +61,13 @@ module Cloudpad
             if ak == c.fetch(:app_key)
               ci = Cloudpad::Container.new
               # this is a container we manage, add it to list
+              unless ci.options = c.fetch(:container_types)[type.to_sym]
+                puts "Type #{type} not found in deploy".red
+                next
+              end
+
               ci.host = host
               ci.app_key = ak
-              ci.options = c.fetch(:container_types)[type.to_sym]
               ci.image_options = c.fetch(:images)[ci.options[:image]]
               ci.name = cn
               ci.type = type.to_sym
@@ -266,7 +270,7 @@ module Cloudpad
           Cloudpad::Docker::Context.update_container(c, {name: change[:spec][:name]})
         end
       end
-      
+
 
     end
 

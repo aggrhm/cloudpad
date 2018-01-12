@@ -158,7 +158,9 @@ module Cloudpad
 
     def dfi(inst, *args)
       insts = fetch(:dockerfile_helpers)
-      insts[inst].call(*args)
+      callable = insts[inst]
+      raise StandardError, "#{inst} is not a registered dfi" if callable.nil?
+      callable.call(*args)
     end
 
     def filtered_container_types

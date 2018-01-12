@@ -100,7 +100,7 @@ namespace :docker do
       svs = (opts[:services] || []) | (opts[:available_services] || [])
       svs.each do |svc|
         cmd = services[svc.to_sym]
-        raise "Service not found!" if cmd.nil?
+        raise "Service not found: #{svc}!" if cmd.nil?
         ofp = File.join(context_path, 'services', "#{svc}.sh")
         ostr = "#!/bin/bash\n#{cmd}"
         if !File.exists?(ofp) || ostr != File.read(ofp)
