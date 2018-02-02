@@ -13,10 +13,9 @@ namespace :kube do
   desc "Apply configuration"
   task :apply do
     app_key = fetch(:app_key)
-    comp_names = filtered_components
-    comps = fetch(:components).values.select{|c| comp_names.include?(c[:key])}
-    comp_files = comps.collect{|opts| File.join(kube_build_path, opts[:file]) }
-    args = comp_files.collect{|f| "-f #{file}"}.join(" ")
+    comps = filtered_components
+    comp_files = comps.collect{|opts| opts[:file] }
+    args = comp_files.collect{|f| "-f #{f}"}.join(" ")
     sh "kubectl -n #{app_key} apply #{args}"
   end
 

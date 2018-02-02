@@ -82,6 +82,9 @@ module Cloudpad
       id = id.to_sym
       opts[:id] = id
       opts[:name] = id
+      opts[:groups] ||= [id]
+      opts[:file] = File.join(kube_path, "#{id}.yml")
+      opts[:build_file] = File.join(build_kube_path, "#{id}.yml")
       fetch(:components)[id] = opts
     end
     def container_type(name, opts)

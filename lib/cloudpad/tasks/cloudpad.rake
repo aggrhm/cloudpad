@@ -124,13 +124,18 @@ namespace :cloudpad do
     }.merge(fetch(:services) || {})
 
     if ENV['group']
+      if !fetch(:components).keys.empty?
+        ge = 'comp'; gi = :components
+      else
+        ge = 'type'; gi = :container_types
+      end
       grs = ENV['group'].split(',').collect(&:to_sym)
-      types = fetch(:container_types).select{|type, opts|
+      types = fetch(gi).select{|id, opts|
         opts[:groups] && !(opts[:groups] & grs).empty?
       }.keys
 
-      ENV['type'] = types.collect(&:to_s).join(",")
-      puts "Processing types: #{ENV['type']}...".yellow
+      ENV[ge] = types.collect(&:to_s).join(",")
+      puts "Processing #{gi.to_s}: #{ENV[ge]}...".yellow
     end
 
   end
