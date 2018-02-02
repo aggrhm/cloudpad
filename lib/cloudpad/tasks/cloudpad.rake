@@ -3,6 +3,7 @@ namespace :cloudpad do
   task :load do
     app_key = fetch(:app_key) || set(:app_key, "app")
     set(:images, {}) if fetch(:images).nil?
+    set(:components, {}) if fetch(:components).nil?
     set(:container_types, {}) if fetch(:container_types).nil?
     set(:repos, {}) if fetch(:repos).nil?
     set(:services, {}) if fetch(:services).nil?
@@ -28,7 +29,16 @@ namespace :cloudpad do
 
     fetch(:images).each do |type, opts|
       opts[:name] ||= "#{app_key}-#{type}"
+      opts[:tag_forced] = opts[:tag].present?
+      image_build_path = File.join(build_image_path, opts[:name])
+      # load last tag
+      if !opts[:tag_forced] && File.exists?( image_build_path )
+        data = JSON.parse(File.read(image_build_path))
+        opts[:tag] = data['tag']
+      end
+      opts[:tag_with_name] = "#{opts[:name]}:#{opts[:tag]}"
     end
+
     fetch(:container_types).each do |type, opts|
       opts[:image] ||= type.to_sym
     end

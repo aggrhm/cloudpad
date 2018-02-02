@@ -85,6 +85,8 @@ namespace :docker do
   ### BUILD
   desc "Rebuild docker images for all defined container types"
   task :build do
+    # determine image tag
+    tag = Time.now.strftime("%Y%m%d-%H%M%S")
     no_cache = parse_env('no_cache') || false
     images = fetch(:images)
     services = fetch(:services)
@@ -94,6 +96,18 @@ namespace :docker do
       opts = images[type]
       puts "Building #{type} image...".yellow
       set :building_image, type
+
+      # if repo, append git hash to tag
+      if opts[:repos]
+        repo = opts[:repos].keys.first
+        repo_path = File.join(repos_path, repo)
+        sha1 = `git --git-dir #{repo_path}/.git rev-parse --short HEAD`.strip
+        tag += "-#{sha1}"
+      end
+      if !opts[:tag_forced]
+        opts[:tag] = tag
+        opts[:name_with_tag] = "#{opts[:name]}:#{opts[:tag]}"
+      end
 
       # write service files
       FileUtils.mkdir_p( File.join(context_path, 'services') )
@@ -117,7 +131,12 @@ namespace :docker do
       File.open(cdf_path, "w") {|fp| fp.write(df_str)}
       cache_opts = no_cache ? "--no-cache " : ""
 
-      sh "sudo docker build -t #{opts[:name]} #{cache_opts}#{context_path}"
+      sh "sudo docker build -t #{opts[:name_with_tag]} #{cache_opts}#{context_path}"
+
+      # write image info to build
+      FileUtils.mkdir_p( build_image_path ) if !File.directory?(build_image_path)
+      img_build_path = File.join(build_image_path, opts[:name])
+      File.write(img_build_path, opts.to_json)
 
     end
     set :building_image, nil
@@ -134,8 +153,8 @@ namespace :docker do
     tag_cmd = docker_version_number < 1.13 ? 'tag  -f' : 'tag'
     filtered_image_types.each do |type|
       opts = images[type]
-      sh "sudo docker #{tag_cmd} #{opts[:name]}:latest #{reg}/#{opts[:name]}:latest"
-      sh "sudo docker push #{reg}/#{opts[:name]}:latest"
+      sh "sudo docker #{tag_cmd} #{opts[:name_with_tag]} #{reg}/#{opts[:name_with_tag]}"
+      sh "sudo docker push #{reg}/#{opts[:name_with_tag]}"
     end
   end
 

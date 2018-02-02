@@ -74,7 +74,7 @@ namespace :docker do
     on roles(:host) do
       filtered_image_types.each do |type|
         img_opts = images[type.to_sym]
-        execute "sudo docker pull #{reg}/#{img_opts[:name]}:latest"
+        execute "sudo docker pull #{reg}/#{img_opts[:name_with_tag]}"
       end
     end
   end

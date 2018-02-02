@@ -117,7 +117,7 @@ module Cloudpad
       def self.check_launcher_images(c)
         images = c.fetch(:images)
         images.each do |type, iopts|
-          img_id = `sudo docker images -q #{iopts[:name]}:latest`.strip
+          img_id = `sudo docker images -q #{iopts[:name_with_tag]}`.strip
           if img_id != ""
             iopts[:latest_id] = img_id
             info = JSON.parse(`sudo docker inspect #{img_id}`).first
@@ -278,7 +278,7 @@ module Cloudpad
       cr = {}
       app_key = env.fetch(:app_key)
       cr["name"] = "#{app_key}.#{type.to_s}.#{inst_num}"
-      cr["image"] = "#{img_opts[:name]}:latest"
+      cr["image"] = "#{img_opts[:name_with_tag]}"
       cr["instance"] = inst_num
       cr["host"] = host.name
       cr["host_ip"] = host.internal_ip

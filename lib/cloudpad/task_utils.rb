@@ -42,6 +42,18 @@ module Cloudpad
     def static_path
       File.join root_path, "static"
     end
+    def kube_path
+      File.join root_path, "kube"
+    end
+    def build_path
+      File.join root_path, "build"
+    end
+    def build_image_path
+      File.join root_path, "build", "image"
+    end
+    def build_kube_path
+      File.join root_path, "build", "kube"
+    end
 
     def prompt(question, default=nil)
       def_str = default ? " [#{default}] " : " "
@@ -65,6 +77,12 @@ module Cloudpad
     def image(name, opts)
       s = (fetch(:images)[name.to_sym] ||= {})
       s.merge!(opts)
+    end
+    def component(id, opts)
+      id = id.to_sym
+      opts[:id] = id
+      opts[:name] = id
+      fetch(:components)[id] = opts
     end
     def container_type(name, opts)
       s = (fetch(:container_types)[name.to_sym] ||= {})
@@ -92,8 +110,16 @@ module Cloudpad
       s.merge!(opts)
     end
 
-    def image_opts
-      fetch(:images)[fetch(:building_image)]
+    def image_opts(name=nil)
+      if name.nil?
+        fetch(:images)[fetch(:building_image)]
+      else
+        fetch(:images)[name]
+      end
+    end
+
+    def image_uri(name)
+      "#{fetch(:registry)}/#{image_opts(name)[:tag_with_name]}"
     end
 
     def building_image?(img)
@@ -169,13 +195,34 @@ module Cloudpad
       tf = ENV['type'].split(',').collect(&:to_sym)
     end
 
-    def filtered_image_types
+    def filtered_images
       ims = fetch(:images)
       cts = fetch(:container_types)
+      cmps = fetch(:components)
       if !(img_names = ENV['image']).nil?
-        return img_names.split(',').collect(&:to_sym)
+        return img_names.split(',').collect{|n| ims[n.to_sym]}.compact
+      elsif ENV['type'].present?
+        return filtered_container_types.collect{|t| cts[t][:image]}.uniq.collect{|n| ims[n]}
+      elsif ENV['comp'].present?
+        return filtered_component_names.collect{|n| cmps[n][:images]}.flatten.uniq.collect{|n| ims[n]}
       else
-        return filtered_container_types.collect{|t| cts[t][:image]}.uniq
+        return ims
+      end
+    end
+
+    def filtered_image_types
+      filtered_images.collect{|opts| opts[:id]}
+    end
+
+    def filtered_components
+      cmps = fetch(:components)
+      if ENV['comp'].present?
+        ENV['comp'].split(',').collect{|n| cmps[n.to_sym]}.compact
+      elsif ENV['image'].present?
+        imgs = filtered_image_types
+        cmps.select{|c| (filtered_image_types & c[:images]).length > 0}
+      else
+        return cmps
       end
     end
 
