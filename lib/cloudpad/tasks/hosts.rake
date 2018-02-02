@@ -89,7 +89,7 @@ namespace :hosts do
     end
   end
 
-  task :clean do
+  task :clean_images do
     puts "Cleaning host docker images...".yellow
     on roles(:host) do
       Cloudpad::Docker::Context.clean_images(self)

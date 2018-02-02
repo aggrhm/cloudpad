@@ -142,7 +142,7 @@ namespace :launcher do
   end
 
 
-  task :clean do
+  task :clean_images do
     puts "Cleaning local docker images...".yellow
     run_locally do
       Cloudpad::Docker::Context.clean_images(self)
