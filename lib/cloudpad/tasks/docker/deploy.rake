@@ -143,3 +143,5 @@ before "docker:shell", "docker:check_running"
 
 before "docker:maintain", "docker:check_launcher_images"
 before "docker:maintain", "docker:check_running"
+
+after "docker:update_host_images", "hosts:clean_images"
