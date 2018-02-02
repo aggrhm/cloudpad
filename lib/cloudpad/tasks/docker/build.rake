@@ -100,7 +100,7 @@ namespace :docker do
       # if repo, append git hash to tag
       if opts[:repos]
         repo = opts[:repos].keys.first
-        repo_path = File.join(repos_path, repo)
+        repo_path = File.join(repos_path, repo.to_s)
         sha1 = `git --git-dir #{repo_path}/.git rev-parse --short HEAD`.strip
         tag += "-#{sha1}"
       end

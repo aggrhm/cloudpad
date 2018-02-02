@@ -74,10 +74,12 @@ module Cloudpad
       "RUN echo \"#{Time.now.to_s}\""
     end
 
-    def image(name, opts)
-      s = (fetch(:images)[name.to_sym] ||= {})
-      s.merge!(opts)
+    def image(id, opts)
+      id = id.to_sym
+      opts[:id] = id
+      fetch(:images)[id] = opts
     end
+
     def component(id, opts)
       id = id.to_sym
       opts[:id] = id
@@ -234,10 +236,8 @@ module Cloudpad
       if rv
         return rv.split(',').collect(&:to_sym)
       else
-        repos = fetch(:repos)
-        images = fetch(:images)
-        return filtered_image_types.collect{|t| 
-          rs = images[t][:repos]
+        return filtered_images.collect{|img| 
+          rs = img[:repos]
           if rs
             rs.keys
           else
