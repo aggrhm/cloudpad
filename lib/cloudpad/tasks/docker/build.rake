@@ -131,9 +131,10 @@ namespace :docker do
 
     images = fetch(:images)
     insecure = fetch(:insecure_registry)
+    tag_cmd = docker_version_number < 1.13 ? 'tag  -f' : 'tag'
     filtered_image_types.each do |type|
       opts = images[type]
-      sh "sudo docker tag -f #{opts[:name]}:latest #{reg}/#{opts[:name]}:latest"
+      sh "sudo docker #{tag_cmd} #{opts[:name]}:latest #{reg}/#{opts[:name]}:latest"
       sh "sudo docker push #{reg}/#{opts[:name]}:latest"
     end
   end

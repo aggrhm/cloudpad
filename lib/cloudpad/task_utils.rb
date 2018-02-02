@@ -320,6 +320,10 @@ module Cloudpad
       end
     end
 
+    def docker_version_number
+      fetch(:docker_version).to_f
+    end
+
   end
 end
 
