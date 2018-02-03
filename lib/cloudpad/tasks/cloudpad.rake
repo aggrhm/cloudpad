@@ -11,11 +11,11 @@ namespace :cloudpad do
     set(:insecure_registry, false) if fetch(:insecure_registry).nil?
     set(:nfs_shared_path, "/shared") if fetch(:nfs_shared_path).nil?
     set(:host_subnet, "0.0.0.0/0") if fetch(:host_subnet).nil?
-    local_ip = local_ip_address
-    set(:launcher_ip, local_ip) if fetch(:launcher_ip).nil?
-    set(:registry, "#{local_ip}:5000") if fetch(:registry).nil?
-    set(:etcd_client_url, "http://#{local_ip}:2379") if fetch(:etcd_client_url).nil?
-    set(:static_server_url, "http://#{local_ip}:8080") if fetch(:static_server_url).nil?
+    #local_ip = local_ip_address
+    #set(:launcher_ip, local_ip) if fetch(:launcher_ip).nil?
+    #set(:registry, "#{local_ip}:5000") if fetch(:registry).nil?
+    #set(:etcd_client_url, "http://#{local_ip}:2379") if fetch(:etcd_client_url).nil?
+    #set(:static_server_url, "http://#{local_ip}:8080") if fetch(:static_server_url).nil?
     set(:context_extensions, {}) if fetch(:context_extensions).nil?
     set(:container_env_vars, {}) if fetch(:container_env_vars).nil?
     set(:puppet_modules, {}) if fetch(:puppet_modules).nil?
@@ -36,7 +36,7 @@ namespace :cloudpad do
         data = JSON.parse(File.read(image_build_path))
         opts[:tag] = data['tag']
       end
-      opts[:tag_with_name] = "#{opts[:name]}:#{opts[:tag]}"
+      opts[:name_with_tag] = "#{opts[:name]}:#{opts[:tag]}"
     end
 
     fetch(:container_types).each do |type, opts|

@@ -124,7 +124,7 @@ module Cloudpad
     end
 
     def image_uri(name)
-      "#{fetch(:registry)}/#{image_opts(name)[:tag_with_name]}"
+      "#{fetch(:registry)}/#{image_opts(name)[:name_with_tag]}"
     end
 
     def building_image?(img)
@@ -209,7 +209,7 @@ module Cloudpad
       elsif ENV['type'].present?
         return filtered_container_types.collect{|t| cts[t][:image]}.uniq.collect{|n| ims[n]}
       elsif ENV['comp'].present?
-        return filtered_component_names.collect{|n| cmps[n][:images]}.flatten.uniq.collect{|n| ims[n]}
+        return filtered_components.collect{|opts| opts[:images]}.flatten.uniq.collect{|n| ims[n]}
       else
         return ims
       end
