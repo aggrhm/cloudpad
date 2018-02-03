@@ -15,6 +15,10 @@ module Cloudpad
       post_settings_blocks << block
     end
 
+    def app_key
+      fetch(:app_key)
+    end
+
     def root_path
       Dir.pwd
     end
@@ -68,6 +72,14 @@ module Cloudpad
 
     def build_template_file(name)
       ERB.new(File.read(name)).result(binding)
+    end
+
+    def write_template_file(infile, outfile)
+      out = build_template_file(infile)
+      dir = File.dirname(outfile)
+      FileUtils.mkdir_p(dir)
+      File.write(outfile, out)
+      return outfile
     end
 
     def clear_cache
