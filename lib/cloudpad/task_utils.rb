@@ -92,11 +92,12 @@ module Cloudpad
       fetch(:images)[id] = opts
     end
 
-    def component(id, opts)
+    def component(id, opts={})
       id = id.to_sym
       opts[:id] = id
       opts[:name] = id
       opts[:groups] ||= [id]
+      opts[:images] ||= []
       opts[:file] = File.join(kube_path, "#{id}.yml")
       opts[:build_file] = File.join(build_kube_path, "#{id}.yml")
       fetch(:components)[id] = opts
@@ -221,9 +222,9 @@ module Cloudpad
       elsif ENV['type'].present?
         return filtered_container_types.collect{|t| cts[t][:image]}.uniq.collect{|n| ims[n]}
       elsif ENV['comp'].present?
-        return filtered_components.collect{|opts| opts[:images]}.flatten.uniq.collect{|n| ims[n]}
+        return filtered_components.collect{|opts| opts[:images]}.flatten.uniq.compact.collect{|n| ims[n]}
       else
-        return ims
+        return ims.values
       end
     end
 
@@ -239,7 +240,7 @@ module Cloudpad
         imgs = filtered_image_types
         cmps.select{|c| (filtered_image_types & c[:images]).length > 0}
       else
-        return cmps
+        return cmps.values
       end
     end
 

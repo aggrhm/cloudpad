@@ -47,9 +47,18 @@ namespace :kube do
 
   task :shell do
     name = ENV['name']
-    if name.blank?
-      puts "Please give pod name.".red
+    comp = ENV['comp']
+    if name.blank? && comp.blank?
+      puts "Please give pod or component name.".red
       next
+    elsif comp.present?
+      json = JSON.parse(`kubectl -n #{app_key} get pods -o json`)
+      ci = json['items'].select{|itm| itm['metadata']['labels']['component'] == comp}.first
+      if ci.nil?
+        puts "No pod running with that component name".red
+        next
+      end
+      name = ci['metadata']['name']
     end
     sh "kubectl -n #{fetch(:app_key)} exec -i -t #{name} bash"
   end
@@ -73,22 +82,24 @@ namespace :kube do
       jfs.each do |jf|
         jfn = "#{jf}.yml"
         cf = File.join(kube_path, jfn)
-        of = File.join(kube_build_path, jfn)
+        of = File.join(build_kube_path, jfn)
         write_template_file(cf, of)
-        puts "Running job #{jf}..."
-        sh "kubectl -n #{app_key} apply -f #{of}"
-        puts "Waiting for job success"
         jd = YAML.load_file(of).with_indifferent_access
         jname = jd[:metadata][:name]
+
+        puts "Running job #{jname}..."
+        # delete job first
+        sh "kubectl -n #{app_key} delete job #{jname} --ignore-not-found=true"
+        sh "kubectl -n #{app_key} apply -f #{of}"
+        puts "Waiting for job".yellow
         loop do
-          jstatus = `kubectl -n #{app_key} get job/#{jname} -o json`
-          puts jstatus
-          if jstatus[:completed] = 1
-            if success
-              puts "Job completed successfully."
-            else
-              raise "Job did not successfully finish."
-            end
+          js = JSON.parse(`kubectl -n #{app_key} get job/#{jname} -o json`)
+          if js['status']['failed'].to_i > 0
+            raise "Job did not successfully finish.".red
+          end
+          if js['status']['succeeded'].to_i >= js['spec']['completions'].to_i
+            puts "Job completed successfully.".green
+            break
           end
           sleep 1
         end

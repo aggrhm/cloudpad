@@ -114,6 +114,12 @@ namespace :cloudpad do
       },
       download_static_file: lambda {|path|
         str = "RUN curl -O #{fetch(:static_server_url)}/#{path}\n"
+      },
+      include_image_env: lambda {
+        es = (image_opts[:env] || {}).collect do |key, val|
+          "#{key}=\"#{val}\""
+        end
+        str = "ENV #{es.join(" ")}\n"
       }
     }.merge(fetch(:dockerfile_helpers) || {})
 
@@ -135,6 +141,9 @@ namespace :cloudpad do
       }.keys
 
       ENV[ge] = types.collect(&:to_s).join(",")
+      if types.empty?
+        raise "Requested group did not match any components.".red
+      end
       puts "Processing #{gi.to_s}: #{ENV[ge]}...".yellow
     end
 
