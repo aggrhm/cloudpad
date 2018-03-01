@@ -128,7 +128,8 @@ module Cloudpad
       end
 
       def self.clean_images(c)
-        if c.docker_version_number < 1.13
+        dvm = c.docker_version_meta
+        if dvm[:major] == 1 && dvm[:minor] < 13
           c.execute "sudo docker images --quiet --filter=dangling=true | sudo xargs --no-run-if-empty docker rmi"
         else
           c.execute "sudo docker image prune -f"
