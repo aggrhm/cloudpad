@@ -264,7 +264,8 @@ module Cloudpad
         qval = Shellwords.escape(val)
         "--env #{key}=#{qval}"
       end.join(" ")
-      return "#{fname} #{frst} #{fports} #{fvols} #{fcenv} #{fenv} #{cimg}"
+      custargs = options[:custom_args] || ""
+      return "#{fname} #{frst} #{fports} #{fvols} #{fcenv} #{fenv} #{custargs} #{cimg}"
     end
 
     def start_command(env)
