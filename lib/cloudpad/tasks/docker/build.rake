@@ -150,7 +150,8 @@ namespace :docker do
 
     images = fetch(:images)
     insecure = fetch(:insecure_registry)
-    tag_cmd = docker_version_number < 1.13 ? 'tag  -f' : 'tag'
+    dvm = docker_version_meta
+    tag_cmd = (dvm[:major] == 1 && dvm[:minor] < 13) ? 'tag  -f' : 'tag'
     filtered_image_types.each do |type|
       opts = images[type]
       sh "sudo docker #{tag_cmd} #{opts[:name_with_tag]} #{reg}/#{opts[:name_with_tag]}"
