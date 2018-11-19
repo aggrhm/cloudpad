@@ -106,6 +106,19 @@ namespace :docker do
     sh "ssh -t #{server.user}@#{server.hostname} sudo docker exec -i -t #{name} /bin/bash"
   end
 
+  ### LOGS
+  task :logs do
+    name = ENV['name']
+    ci = container_with_name(name)
+    if ci.nil?
+      puts "Container #{name} not found.".red
+      next
+    end
+    server = server_running_container(ci)
+    log_args = fetch(:docker_log_args) || ""
+    sh "ssh -t #{server.user}@#{server.hostname} sudo docker logs #{log_args} #{name}"
+  end
+
   ### MAINTAIN
   task :maintain do
     noop = parse_env("noop")
