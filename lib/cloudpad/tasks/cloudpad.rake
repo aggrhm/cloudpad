@@ -27,8 +27,9 @@ namespace :cloudpad do
       blk.call
     end
 
+    # prepare images
     fetch(:images).each do |type, opts|
-      opts[:name] ||= "#{app_key}-#{type}"
+      opts[:name] ||= "#{type}"
       opts[:tag_forced] = opts[:tag].present?
       image_build_path = File.join(build_image_path, opts[:name])
       # load last tag
