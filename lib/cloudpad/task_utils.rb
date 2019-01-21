@@ -125,8 +125,8 @@ module Cloudpad
       return cvs
     end
     def container_env_var(name, var)
-      s = (fetch(:container_env_vars)[name.to_sym] ||= {})
-      s.merge!(opts)
+      cvs = fetch(:container_env_vars)
+      cvs[name] = var
     end
 
     def image_opts(name=nil)
