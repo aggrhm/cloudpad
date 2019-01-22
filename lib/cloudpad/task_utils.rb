@@ -388,6 +388,22 @@ module Cloudpad
       fetch(:docker_version).to_f
     end
 
+    def install_context_extensions
+      # make extensions dir
+      sh "\\mkdir -p #{context_extensions_path}" if !File.directory?(context_extensions_path)
+      ctx_exts = fetch(:context_extensions)
+      ctx_exts.each do |name_sym, eopts|
+        name = name_sym.to_s
+        # create path if doesn't exist
+        ep = File.join(context_extensions_path, name)
+        gep = eopts[:path]
+        # check if paths are the same
+        sh "\\rm -rf #{ep}"
+        sh "\\cp -a #{gep} #{ep}"
+        puts "Installed context extension '#{name}'.".green
+      end
+    end
+
   end
 end
 

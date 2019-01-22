@@ -90,20 +90,39 @@ namespace :docker do
     no_cache = parse_env('no_cache') || false
     images = fetch(:images)
     services = fetch(:services)
+    repos = fetch(:repos)
     puts "No images to build".red if images.nil? || images.empty?
+
+    if File.directory?(context_path) && !File.exist?(File.join(context_path, ".build-info"))
+      raise "Context has been modified manually. Cannot clear.".red
+    end
 
     filtered_image_types.each do |type|
       opts = images[type]
       puts "Building #{type} image...".yellow
       set :building_image, type
 
-      # if repo, append git hash to tag
+      # clear context dir
+      sh "rm -rf #{context_path}"
+      sh "mkdir #{context_path}"
+
+      # install extensions
+      install_context_extensions
+
+      # if repo, clone and append git hash to tag
       if opts[:repos]
+        opts[:repos].each do |rkey, riopts|
+          ropts = repos[rkey]
+          rpath = File.join(repos_path, rkey.to_s)
+          puts "Downloading #{rkey} repository to context...".yellow
+          sh "git clone --depth 1 --branch #{ropts[:branch] || 'master'} #{ropts[:url]} #{rpath}"
+        end
         repo = opts[:repos].keys.first
         repo_path = File.join(repos_path, repo.to_s)
         sha1 = `git --git-dir #{repo_path}/.git rev-parse --short HEAD`.strip
         tag += "-#{sha1}"
       end
+
       if !opts[:tag_forced]
         opts[:tag] = tag
         opts[:name_with_tag] = "#{opts[:name]}:#{opts[:tag]}"
@@ -137,6 +156,9 @@ namespace :docker do
       FileUtils.mkdir_p( build_image_path ) if !File.directory?(build_image_path)
       img_build_path = File.join(build_image_path, opts[:name])
       File.write(img_build_path, opts.to_json)
+
+      # write build info file to context
+      File.write(File.join(context_path, ".build-info"), Time.now.to_s)
 
     end
     set :building_image, nil
@@ -187,8 +209,8 @@ namespace :docker do
 
 end
 
-before "docker:build", "docker:update_context_extensions"
-before "docker:build", "docker:update_repos"
+#before "docker:build", "docker:update_context_extensions"
+#before "docker:build", "docker:update_repos"
 before "docker:cache_repo_gemfiles", "docker:update_repos"
 after "docker:build", "docker:push_images"
 after "docker:push_images", "launcher:clean_images"

@@ -84,6 +84,7 @@ namespace :cloudpad do
       },
       install_image_services: lambda {
         str = ""
+        str << "ADD ext/cloudpad/bin/install_services /etc/init.d/install_services\n"
         image_opts[:available_services].each do |svc|
           str << "ADD services/#{svc}.sh /root/services/#{svc}.sh\n"
         end unless image_opts[:available_services].nil?
