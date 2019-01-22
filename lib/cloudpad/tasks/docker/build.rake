@@ -86,7 +86,8 @@ namespace :docker do
   desc "Rebuild docker images for all defined container types"
   task :build do
     # determine image tag
-    tag = Time.now.strftime("%Y%m%d-%H%M%S")
+    tag_time = Time.now.strftime("%Y%m%d-%H%M%S")
+    tag = "#{app_key}-#{tag_time}"
     no_cache = parse_env('no_cache') || false
     images = fetch(:images)
     services = fetch(:services)
