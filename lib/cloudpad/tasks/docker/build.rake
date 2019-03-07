@@ -101,14 +101,22 @@ namespace :docker do
     filtered_image_types.each do |type|
       opts = images[type]
       puts "Building #{type} image...".yellow
-      set :building_image, type
+      set :building_image_id, type
 
       # clear context dir
       sh "rm -rf #{context_path}"
       sh "mkdir #{context_path}"
+      File.write(File.join(context_path, ".build-info"), Time.now.to_s)
 
       # install extensions
       install_context_extensions
+
+      # install context files
+      opts[:files].each do |fopts|
+        next if fopts[:local].blank?
+        cp = File.join(context_path, (fopts[:context] || fopts[:local]))
+        sh "mkdir -p `dirname #{cp}` && cp -a #{fopts[:local]} #{cp}"
+      end
 
       # if repo, clone and append git hash to tag
       if opts[:repos]
@@ -116,12 +124,22 @@ namespace :docker do
           ropts = repos[rkey]
           rpath = File.join(repos_path, rkey.to_s)
           puts "Downloading #{rkey} repository to context...".yellow
-          sh "git clone --depth 1 --branch #{ropts[:branch] || 'master'} #{ropts[:url]} #{rpath}"
+          if ropts[:type] == :tar
+            tar_path = "/tmp/#{ropts[:id]}#{File.extname(ropts[:url])}"
+            sh "wget #{ropts[:url]} -O #{tar_path}"
+            sh "tar -C /tmp -zxvf #{tar_path}"
+            sh "mkdir -p #{repos_path} && mv /tmp/#{ropts[:root]} #{rpath}"
+          else
+            sh "git clone --depth 1 --branch #{ropts[:branch] || 'master'} #{ropts[:url]} #{rpath}"
+          end
         end
-        repo = opts[:repos].keys.first
-        repo_path = File.join(repos_path, repo.to_s)
-        sha1 = `git --git-dir #{repo_path}/.git rev-parse --short HEAD`.strip
-        tag += "-#{sha1}"
+        rkey = opts[:repos].keys.first
+        ropts = repos[rkey]
+        if ropts[:type] == :git || ropts[:type].nil?
+          repo_path = File.join(repos_path, rkey.to_s)
+          sha1 = `git --git-dir #{repo_path}/.git rev-parse --short HEAD`.strip
+          tag += "-#{sha1}"
+        end
       end
 
       if !opts[:tag_forced]
@@ -151,24 +169,21 @@ namespace :docker do
       File.open(cdf_path, "w") {|fp| fp.write(df_str)}
       cache_opts = no_cache ? "--no-cache " : ""
 
-      sh "sudo docker build -t #{opts[:name_with_tag]} #{cache_opts}#{context_path}"
+      sh "sudo docker build -t #{opts[:name_with_tag]} --network host #{cache_opts}#{context_path}"
 
       # write image info to build
       FileUtils.mkdir_p( build_image_path ) if !File.directory?(build_image_path)
       img_build_path = File.join(build_image_path, opts[:name])
       File.write(img_build_path, opts.to_json)
 
-      # write build info file to context
-      File.write(File.join(context_path, ".build-info"), Time.now.to_s)
-
     end
-    set :building_image, nil
+    set :building_image_id, nil
   end
 
   ### PUSH_IMAGES
   desc "Push images to registry"
   task :push_images do
-    reg = fetch(:registry)
+    reg = fetch(:registry_url)
     next if reg.nil?
 
     images = fetch(:images)
@@ -177,9 +192,19 @@ namespace :docker do
     tag_cmd = (dvm[:major] == 1 && dvm[:minor] < 13) ? 'tag  -f' : 'tag'
     filtered_image_types.each do |type|
       opts = images[type]
-      sh "sudo docker #{tag_cmd} #{opts[:name_with_tag]} #{reg}/#{opts[:name_with_tag]}"
-      sh "sudo docker push #{reg}/#{opts[:name_with_tag]}"
+      reg_uri = image_uri(type)
+      sh "sudo docker #{tag_cmd} #{opts[:name_with_tag]} #{reg_uri}"
+      sh "sudo docker push #{reg_uri}"
     end
+  end
+
+  ### REGISTRY LOGIN
+  desc "Login to registry"
+  task :login_registry do
+    scn = fetch(:registry_login_script)
+    next if scn.nil?
+    sp = File.join(root_path, scn)
+    sh "REGISTRY_URL=#{fetch(:registry_url)} #{sp}"
   end
 
   ### CACHE_REPO_GEMFILES
@@ -213,5 +238,6 @@ end
 #before "docker:build", "docker:update_context_extensions"
 #before "docker:build", "docker:update_repos"
 before "docker:cache_repo_gemfiles", "docker:update_repos"
+before "docker:push_images", "docker:login_registry"
 after "docker:build", "docker:push_images"
 after "docker:push_images", "launcher:clean_images"

@@ -1,6 +1,34 @@
 require 'securerandom'
 
 module Cloudpad
+
+  class ConfigBuilder
+    attr_reader :file, :options
+    def initialize(file, opts={})
+      @file = file
+      @options = opts
+      @multi_document = false
+    end
+    def result
+      eval(File.read(@file))
+    rescue => ex
+      puts "Error processing file #{@file}".red
+      raise ex
+    end
+    def to_yaml
+      r = {'config' => result}.deep_stringify_keys['config']
+      #puts r
+      if @multi_document == true && r.is_a?(Array)
+        Psych.dump_stream(*r)
+      else
+        Psych.dump(r)
+      end
+    end
+    def to_json
+      result.to_json
+    end
+  end
+
   module TaskUtils
 
     def define(key, &block)
@@ -71,7 +99,13 @@ module Cloudpad
     end
 
     def build_template_file(name)
-      ERB.new(File.read(name)).result(binding)
+      if name.ends_with?(".yml.rb")
+        return ConfigBuilder.new(name).to_yaml
+      elsif name.ends_with?(".json.rb")
+        return ConfigBuilder.new(name).to_json
+      else
+        return ERB.new(File.read(name)).result(binding)
+      end
     end
 
     def write_template_file(infile, outfile)
@@ -87,35 +121,72 @@ module Cloudpad
     end
 
     def image(id, opts)
-      id = id.to_sym
       opts[:id] = id
+      opts[:env] ||= {}
+      opts[:files] ||= []
+      opts[:writable_dirs] ||= []
+      opts[:df_post_scripts] ||= []
       fetch(:images)[id] = opts
     end
 
+    def images
+      fetch(:images)
+    end
+
     def component(id, opts={})
-      id = id.to_sym
       opts[:id] = id
       opts[:name] = id
       opts[:groups] ||= [id]
       opts[:images] ||= []
-      opts[:subdir] ||= ""
-      opts[:file] = File.join(kube_path, opts[:subdir], "#{id}.yml")
-      opts[:build_file] = File.join(build_kube_path, opts[:subdir], "#{id}.yml")
-      fetch(:components)[id] = opts
+      opts[:containers] ||= []
+      opts[:file_name] ||= id
+      opts[:file_subdir] ||= ""
+      opts[:env] ||= {}
+      fp = File.join(kube_path, opts[:file_subdir], opts[:file_name])
+      [".yml", ".yml.rb"].each do |ext|
+        file = fp + ext
+        if File.exists?(file)
+          opts[:file] = file
+          break
+        end
+      end
+      if opts[:file].blank?
+        raise "Kube config file could not be found."
+      end
+      opts[:build_file] = File.join(build_kube_path, opts[:file_subdir], "#{opts[:id]}.yml")
+      opts[:env_map] = opts[:env].collect{|k,v| {name: k, value: v}}
+
+      opts[:containers] = opts[:containers].collect {|copts| opts.merge(copts)}
+      opts[:containers] = [opts] if opts[:containers].length == 0
+      opts[:containers].each do |copts|
+        if copts[:full_command].is_a?(String)
+          cps = copts[:full_command].split(" ")
+          copts[:command] = [cps[0]]
+          copts[:args] = cps[1..-1]
+        end
+      end
+      fetch(:components)[id] = Hash[opts]
     end
-    def container_type(name, opts)
-      s = (fetch(:container_types)[name.to_sym] ||= {})
-      s.merge!(opts)
+
+    def components
+      fetch(:components)
     end
-    def repo(name, opts)
-      s = (fetch(:repos)[name.to_sym] ||= {})
-      s.merge!(opts)
+
+    def container_type(id, opts)
+      opts[:id] = id
+      fetch(:container_types)[id] = Hash[opts]
     end
-    def service(name, val)
-      fetch(:services)[name.to_sym] = val
+    def repo(id, opts)
+      opts[:id] = id
+      fetch(:repos)[id] = Hash[opts]
     end
-    def dockerfile_helper(name, val)
-      fetch(:dockerfile_helpers)[name.to_sym] = val
+    def service(id, opts)
+      opts[:id] = id
+      fetch(:services)[id] = Hash[opts]
+    end
+    def dockerfile_helper(name, opts)
+      opts[:id] = id
+      fetch(:dockerfile_helpers)[id] = Hash[opts]
     end
     def container_env_vars(*vars)
       cvs = fetch(:container_env_vars)
@@ -129,16 +200,31 @@ module Cloudpad
       cvs[name] = var
     end
 
-    def image_opts(name=nil)
+    def building_image(name=nil)
       if name.nil?
-        fetch(:images)[fetch(:building_image)]
+        fetch(:images)[fetch(:building_image_id)]
       else
         fetch(:images)[name]
       end
     end
+    def image_opts(name=nil)
+      building_image(name)
+    end
 
-    def image_uri(name)
-      "#{fetch(:registry)}/#{image_opts(name)[:name_with_tag]}"
+    def image_uri(name, opts={})
+      reg = fetch(:registry_url)
+      ns = fetch(:registry_namespace)
+      nt = image_opts(name)[:name_with_tag]
+      if ns.present?
+        path = "#{ns}/#{nt}"
+      else
+        path = nt
+      end
+      if opts[:full] == false
+        return path
+      else
+        return "#{reg}/#{path}"
+      end
     end
 
     def building_image?(img)
@@ -148,6 +234,18 @@ module Cloudpad
     def container_public_key
       kp = File.join(context_path, "keys", "container.key.pub")
       return File.read(kp).gsub("\n", "")
+    end
+
+    def comp_opts(name=nil)
+      if name.nil?
+        fetch(:components)[fetch(:building_component_id)]
+      else
+        fetch(:components)[name]
+      end
+    end
+
+    def building_component_id
+      fetch(:building_component_id)
     end
 
     def next_available_server(type, filt=nil)
@@ -211,7 +309,7 @@ module Cloudpad
     def filtered_container_types
       cts = fetch(:container_types)
       return cts.keys if ENV['type'].nil?
-      tf = ENV['type'].split(',').collect(&:to_sym)
+      tf = ENV['type'].split(',')
     end
 
     def filtered_images
@@ -219,7 +317,7 @@ module Cloudpad
       cts = fetch(:container_types)
       cmps = fetch(:components)
       if !(img_names = ENV['image']).nil?
-        return img_names.split(',').collect{|n| ims[n.to_sym]}.compact
+        return img_names.split(',').collect{|n| ims[n]}.compact
       elsif ENV['type'].present?
         return filtered_container_types.collect{|t| cts[t][:image]}.uniq.collect{|n| ims[n]}
       elsif ENV['comp'].present?
@@ -236,7 +334,7 @@ module Cloudpad
     def filtered_components
       cmps = fetch(:components)
       if ENV['comp'].present?
-        ENV['comp'].split(',').collect{|n| cmps[n.to_sym]}.compact
+        ENV['comp'].split(',').collect{|n| cmps[n]}.compact
       elsif ENV['image'].present?
         imgs = filtered_image_types
         cmps.select{|c| (filtered_image_types & c[:images]).length > 0}
@@ -248,7 +346,7 @@ module Cloudpad
     def filtered_repo_names
       rv = parse_env('repo') || parse_env('repos')
       if rv
-        return rv.split(',').collect(&:to_sym)
+        return rv.split(',')
       else
         return filtered_images.collect{|img| 
           rs = img[:repos]
@@ -401,6 +499,36 @@ module Cloudpad
         sh "\\rm -rf #{ep}"
         sh "\\cp -a #{gep} #{ep}"
         puts "Installed context extension '#{name}'.".green
+      end
+    end
+
+    def kubecmd
+      ns = fetch(:kube_namespace)
+      raise "Kube namespace not defined." if ns.blank?
+      if fetch(:kube_dist) == :openshift
+        return "oc -n #{ns}"
+      else
+        return "kubectl -n #{ns}"
+      end
+    end
+
+    def load_yaml_file(path)
+      YAML.load_file(File.join(root_path, path))
+    end
+
+    def kube_env_map(val)
+      val.collect {|k, v| {name: k, value: v}}
+    end
+
+    def inline_yaml(val)
+      if val.is_a?(Symbol)
+        return inline_yaml(fetch(val))
+      elsif val.is_a?(Array)
+        return "[#{val.collect {|v| inline_yaml(v)}.join(',')}]"
+      elsif val.is_a?(Hash)
+        return "{#{val.collect {|k, v| "#{k}: #{inline_yaml(v)}"}.join(',')}}"
+      else
+        return val.to_json
       end
     end
 

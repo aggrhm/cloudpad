@@ -41,7 +41,7 @@ namespace :cloudpad do
     end
 
     fetch(:container_types).each do |type, opts|
-      opts[:image] ||= type.to_sym
+      opts[:image] ||= type
     end
 
     fetch(:container_env_vars)['APP_KEY'] ||= :app_key
@@ -78,6 +78,7 @@ namespace :cloudpad do
       },
       install_image_repos: lambda {
         str = ""
+        raise "No image repos specified in dfi for install_image_repos." if image_opts[:repos].nil?
         image_opts[:repos].each do |repo, dest|
           str << dfi(:install_repo, repo, dest) + "\n"
         end
@@ -118,10 +119,19 @@ namespace :cloudpad do
         str = "RUN curl -O #{fetch(:static_server_url)}/#{path}\n"
       },
       include_image_env: lambda {
-        es = (image_opts[:env] || {}).collect do |key, val|
+        es = (building_image[:env] || {}).collect do |key, val|
           "#{key}=\"#{val}\""
         end
         str = "ENV #{es.join(" ")}\n"
+      },
+      openshift_writable_dirs: lambda {
+        str = ""
+        dirs = building_image[:writable_dirs]
+        if dirs.length > 0
+          str << "RUN chgrp -R 0 #{dirs.join(" ")}\n"
+          str << "RUN chmod -R g+rwx #{dirs.join(" ")}\n"
+        end
+        str
       }
     }.merge(fetch(:dockerfile_helpers) || {})
 
@@ -137,7 +147,7 @@ namespace :cloudpad do
       else
         ge = 'type'; gi = :container_types
       end
-      grs = ENV['group'].split(',').collect(&:to_sym)
+      grs = ENV['group'].split(',')
       types = fetch(gi).select{|id, opts|
         opts[:groups] && !(opts[:groups] & grs).empty?
       }.keys
@@ -153,7 +163,7 @@ namespace :cloudpad do
 
 end
 
-Capistrano::DSL.stages.each do |stage|
+stages.each do |stage|
   after stage, 'cloudpad:load'
 end
 

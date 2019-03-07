@@ -67,7 +67,7 @@ namespace :docker do
   ### UPDATE_HOST_IMAGES
   desc "Update host images from registry"
   task :update_host_images do
-    reg = fetch(:registry)
+    reg = fetch(:registry_url)
     app_key = fetch(:app_key)
     images = fetch(:images)
     insecure = fetch(:insecure_registry)
