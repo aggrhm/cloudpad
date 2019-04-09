@@ -132,6 +132,12 @@ namespace :docker do
           else
             sh "git clone --depth 1 --branch #{ropts[:branch] || 'master'} #{ropts[:url]} #{rpath}"
           end
+          # run scripts
+          if ropts[:scripts]
+            ropts[:scripts].each do |script|
+              clean_shell "cd #{rpath} && #{script}"
+            end
+          end
         end
         rkey = opts[:repos].keys.first
         ropts = repos[rkey]
