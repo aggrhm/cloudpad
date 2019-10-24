@@ -2,6 +2,7 @@ namespace :cloudpad do
 
   task :load do
     app_key = fetch(:app_key) || set(:app_key, "app")
+    set(:groups, {}) if fetch(:groups).nil?
     set(:images, {}) if fetch(:images).nil?
     set(:components, {}) if fetch(:components).nil?
     set(:container_types, {}) if fetch(:container_types).nil?

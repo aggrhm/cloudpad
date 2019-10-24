@@ -120,13 +120,23 @@ module Cloudpad
       "RUN echo \"#{Time.now.to_s}\""
     end
 
+    def group(id, opts)
+      opts[:id] = id
+      opts[:env] ||= {}
+      fetch(:groups)[id] = Cloudpad::Group.new(self, opts)
+    end
+
+    def groups
+      fetch(:groups)
+    end
+
     def image(id, opts)
       opts[:id] = id
       opts[:env] ||= {}
       opts[:files] ||= []
       opts[:writable_dirs] ||= []
       opts[:df_post_scripts] ||= []
-      fetch(:images)[id] = opts
+      fetch(:images)[id] = Cloudpad::Image.new(self, opts)
     end
 
     def images
@@ -156,16 +166,7 @@ module Cloudpad
       opts[:build_file] = File.join(build_kube_path, opts[:file_subdir], "#{opts[:id]}.yml")
       opts[:env_map] = opts[:env].collect{|k,v| {name: k, value: v}}
 
-      opts[:containers] = opts[:containers].collect {|copts| opts.merge(copts)}
-      opts[:containers] = [opts] if opts[:containers].length == 0
-      opts[:containers].each do |copts|
-        if copts[:full_command].is_a?(String)
-          cps = copts[:full_command].split(" ")
-          copts[:command] = [cps[0]]
-          copts[:args] = cps[1..-1]
-        end
-      end
-      fetch(:components)[id] = Hash[opts]
+      fetch(:components)[id] = Cloudpad::Component.new(self, opts)
     end
 
     def components
@@ -178,7 +179,7 @@ module Cloudpad
     end
     def repo(id, opts)
       opts[:id] = id
-      fetch(:repos)[id] = Hash[opts]
+      fetch(:repos)[id] = Cloudpad::Repo.new(self, opts)
     end
     def service(id, opts)
       opts[:id] = id

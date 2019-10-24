@@ -127,6 +127,31 @@ module Cloudpad
 
   end
 
+  ## CONFIGELEMENT
+  class ConfigElement
+
+    attr_reader :options
+
+    def initialize(ctx, opts={})
+      @context = ctx
+      @options = opts.with_indifferent_access
+    end
+
+    def id
+      @options[:id]
+    end
+
+    def [](field)
+      @options[field]
+    end
+
+    def []=(field, val)
+      @options[field] = val
+    end
+
+  end
+
+  ## NODE
   class Node < CloudElement
 
     def internal_ip
@@ -153,6 +178,7 @@ module Cloudpad
 
   end
 
+  ## CONTAINER
   class Container
 
     attr_accessor :host, :name, :instance, :type, :ports, :options, :image_options, :app_key, :state, :status, :ip_address
@@ -291,5 +317,42 @@ module Cloudpad
     end
 
   end
+
+  ## CONFIG CLASSES
+
+  class Group < ConfigElement
+  end
+  class Image < ConfigElement
+  end
+  class Component < ConfigElement
+    def images
+      (self[:images] || []).collect{|id| ctx.images[id]}.compact
+    end
+    def groups
+      (self[:groups] || []).collect{|id| ctx.groups[id]}.compact
+    end
+    def full_env
+      env = self.groups.reduce({}){|res, g| res.merge(g[:env] || {})}
+      env.merge(self[:env])
+    end
+    def containers
+      ret = self[:containers].collect {|copts| @options.merge(copts)}
+      ret = [opts] if ret.length == 0
+      ret.each do |copts|
+        if copts[:full_command].is_a?(String)
+          cps = copts[:full_command].split(" ")
+          copts[:command] = [cps[0]]
+          copts[:args] = cps[1..-1]
+        end
+      end
+    end
+    def replicas
+      r = self[:replicas]
+      r.nil? ? 1 : r
+    end
+  end
+  class Repo < ConfigElement
+  end
+
 
 end
