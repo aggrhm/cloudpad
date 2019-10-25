@@ -5,6 +5,7 @@ namespace :cloudpad do
     set(:groups, {}) if fetch(:groups).nil?
     set(:images, {}) if fetch(:images).nil?
     set(:components, {}) if fetch(:components).nil?
+    set(:jobs, {}) if fetch(:jobs).nil?
     set(:container_types, {}) if fetch(:container_types).nil?
     set(:repos, {}) if fetch(:repos).nil?
     set(:services, {}) if fetch(:services).nil?

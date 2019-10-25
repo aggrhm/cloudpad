@@ -127,29 +127,6 @@ module Cloudpad
 
   end
 
-  ## CONFIGELEMENT
-  class ConfigElement
-
-    attr_reader :options
-
-    def initialize(ctx, opts={})
-      @context = ctx
-      @options = opts.with_indifferent_access
-    end
-
-    def id
-      @options[:id]
-    end
-
-    def [](field)
-      @options[field]
-    end
-
-    def []=(field, val)
-      @options[field] = val
-    end
-
-  end
 
   ## NODE
   class Node < CloudElement
@@ -320,39 +297,215 @@ module Cloudpad
 
   ## CONFIG CLASSES
 
+  class ConfigElement
+
+    attr_reader :options
+
+    def self.map
+      Cloudpad.context.fetch(self.config_name)
+    end
+
+    def self.add(id, opts)
+      opts[:id] = id
+      self.map[id] = self.new(opts)
+    end
+
+    def self.with_ids(ids)
+      ids ||= []
+      self.map.values.select {|e| ids.include?(e.id)}
+    end
+
+    def initialize(opts={})
+      @context = Cloudpad.context
+      @options = opts.with_indifferent_access
+      prepare_options
+    end
+
+    def id
+      @options[:id]
+    end
+
+    def [](field)
+      @options[field]
+    end
+
+    def []=(field, val)
+      @options[field] = val
+    end
+
+    def prepare_options
+    end
+
+  end
   class Group < ConfigElement
+    def self.map
+      Cloudpad.context.fetch(:groups)
+    end
+    def prepare_options
+      opts = @options
+      opts[:env] ||= {}
+    end
   end
+  
   class Image < ConfigElement
-  end
-  class Component < ConfigElement
-    def images
-      (self[:images] || []).collect{|id| ctx.images[id]}.compact
+    def self.map
+      Cloudpad.context.fetch(:images)
     end
-    def groups
-      (self[:groups] || []).collect{|id| ctx.groups[id]}.compact
+    def prepare_options
+      opts = @options
+      opts[:env] ||= {}
+      opts[:files] ||= []
+      opts[:writable_dirs] ||= []
+      opts[:df_post_scripts] ||= []
     end
-    def full_env
-      env = self.groups.reduce({}){|res, g| res.merge(g[:env] || {})}
-      env.merge(self[:env])
+    def tag
+      self[:tag]
     end
-    def containers
-      ret = self[:containers].collect {|copts| @options.merge(copts)}
-      ret = [opts] if ret.length == 0
-      ret.each do |copts|
-        if copts[:full_command].is_a?(String)
-          cps = copts[:full_command].split(" ")
-          copts[:command] = [cps[0]]
-          copts[:args] = cps[1..-1]
-        end
+    def name_with_tag
+      "#{self[:name]}:#{self[:tag]}"
+    end
+    def image_uri(opts={})
+      c = Cloudpad.context
+      reg = c.fetch(:registry_url)
+      ns = c.fetch(:registry_namespace)
+      nt = name_with_tag
+      if ns.present?
+        path = "#{ns}/#{nt}"
+      else
+        path = nt
+      end
+      if opts[:full] == false
+        return path
+      else
+        return "#{reg}/#{path}"
       end
     end
-    def replicas
-      r = self[:replicas]
-      r.nil? ? 1 : r
+
+    def build!(opts={})
+      tag = opts[:tag]
+      no_cache = opts[:no_cache] == true
+
+      c = Cloudpad.context
+      puts "Building #{id} image...".yellow
+      c.set :building_image, self
+
+      # clear context dir
+      sh "rm -rf #{c.context_path}"
+      sh "mkdir #{c.context_path}"
+      File.write(File.join(c.context_path, ".build-info"), Time.now.to_s)
+
+      # install extensions
+      c.install_context_extensions
+
+      # install context files
+      self[:files].each do |fopts|
+        next if fopts[:local].blank?
+        cp = File.join(c.context_path, (fopts[:context] || fopts[:local]))
+        sh "mkdir -p `dirname #{cp}` && cp -a #{fopts[:local]} #{cp}"
+      end
+
+      # if repo, clone and append git hash to tag
+      if self[:repos]
+        self[:repos].each do |rid, ropts|
+          repo = Cloudpad::Repo.map[rid]
+          repo.add_to_context!
+        end
+        rid = self[:repos].keys.first
+        repo = Cloudpad::Repo.map[rid]
+        if repo[:type] == :git || repo[:type].nil?
+          repo_path = repo.context_path
+          sha1 = `git --git-dir #{repo_path}/.git rev-parse --short HEAD`.strip
+          tag += "-#{sha1}"
+        end
+      end
+
+      if !self[:tag_forced]
+        self[:tag] = tag
+        self[:name_with_tag] = "#{self[:name]}:#{self[:tag]}"
+      end
+
+      # write service files
+      FileUtils.mkdir_p( File.join(c.context_path, 'services') )
+      svs = (self[:services] || []) | (self[:available_services] || [])
+      svs.each do |svcid|
+        svc = Cloudpad::Service.map[svcid]
+        raise "Service not found: #{svcid}!" if svc.nil?
+        svc.add_to_context!
+      end
+
+      # write dockerfile to context
+      mt = self[:manifest] || type
+      df_path = File.join(c.manifests_path, "#{mt.to_s}.dockerfile")
+      df_str = c.build_template_file(df_path)
+      cdf_path = File.join(c.context_path, "Dockerfile")
+      File.open(cdf_path, "w") {|fp| fp.write(df_str)}
+      cache_opts = no_cache ? "--no-cache " : ""
+
+      sh "sudo docker build -t #{self[:name_with_tag]} --network host #{cache_opts}#{c.context_path}"
+
+      # write image info to build
+      FileUtils.mkdir_p( c.build_image_path ) if !File.directory?(c.build_image_path)
+      img_build_path = File.join(c.build_image_path, opts[:name])
+      File.write(img_build_path, {id: id, tag: self[:tag]}.to_json)
+
+      c.set :building_image, nil
+    end
+
+    def push_to_registry!
+      c = Cloudpad.context
+      dvm = c.docker_version_meta
+      tag_cmd = (dvm[:major] == 1 && dvm[:minor] < 13) ? 'tag  -f' : 'tag'
+      reg_uri = self.image_uri
+      sh "sudo docker #{tag_cmd} #{name_with_tag} #{reg_uri}"
+      sh "sudo docker push #{reg_uri}"
     end
   end
+
   class Repo < ConfigElement
+    def self.map
+      Cloudpad.context.fetch(:repos)
+    end
+    def context_path
+      File.join(Cloudpad.context.repos_path, id)
+    end
+    def add_to_context!(opts={})
+      c = Cloudpad.context
+      rpath = context_path
+      puts "Downloading #{id} repository to context...".yellow
+      if self[:type] == :tar
+        tar_path = "/tmp/#{id}#{File.extname(self[:url])}"
+        sh "wget #{self[:url]} -O #{tar_path}"
+        sh "tar -C /tmp -zxvf #{tar_path}"
+        sh "mkdir -p #{c.repos_path} && mv /tmp/#{self[:root]} #{rpath}"
+      else
+        sh "git clone --depth 1 --branch #{self[:branch] || 'master'} #{self[:url]} #{rpath}"
+      end
+      # run scripts
+      if self[:scripts]
+        self[:scripts].each do |script|
+          c.clean_shell "cd #{rpath} && #{script}"
+        end
+      end
+
+    end
   end
 
+  class Service < ConfigElement
+    def self.map
+      Cloudpad.context.fetch(:services)
+    end
+    def context_path
+      File.join(context_path, 'services', "#{id}.sh")
+    end
+    def add_to_context!(opts={})
+      ofp = context_path
+      cmd = self[:command]
+      ostr = "#!/bin/bash\n#{cmd}"
+      if !File.exists?(ofp) || ostr != File.read(ofp)
+        File.write(ofp, ostr)
+        File.chmod(0755, ofp)
+      end
+    end
+  end
 
 end

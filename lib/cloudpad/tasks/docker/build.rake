@@ -89,101 +89,15 @@ namespace :docker do
     tag_time = Time.now.strftime("%Y%m%d-%H%M%S")
     tag = "#{app_key}-#{tag_time}"
     no_cache = parse_env('no_cache') || false
-    images = fetch(:images)
-    services = fetch(:services)
-    repos = fetch(:repos)
-    puts "No images to build".red if images.nil? || images.empty?
+    puts "No images to build".red if images.empty?
 
     if File.directory?(context_path) && !File.exist?(File.join(context_path, ".build-info"))
       raise "Context has been modified manually. Cannot clear.".red
     end
 
-    filtered_image_types.each do |type|
-      opts = images[type]
-      puts "Building #{type} image...".yellow
-      set :building_image_id, type
-
-      # clear context dir
-      sh "rm -rf #{context_path}"
-      sh "mkdir #{context_path}"
-      File.write(File.join(context_path, ".build-info"), Time.now.to_s)
-
-      # install extensions
-      install_context_extensions
-
-      # install context files
-      opts[:files].each do |fopts|
-        next if fopts[:local].blank?
-        cp = File.join(context_path, (fopts[:context] || fopts[:local]))
-        sh "mkdir -p `dirname #{cp}` && cp -a #{fopts[:local]} #{cp}"
-      end
-
-      # if repo, clone and append git hash to tag
-      if opts[:repos]
-        opts[:repos].each do |rkey, riopts|
-          ropts = repos[rkey]
-          rpath = File.join(repos_path, rkey.to_s)
-          puts "Downloading #{rkey} repository to context...".yellow
-          if ropts[:type] == :tar
-            tar_path = "/tmp/#{ropts[:id]}#{File.extname(ropts[:url])}"
-            sh "wget #{ropts[:url]} -O #{tar_path}"
-            sh "tar -C /tmp -zxvf #{tar_path}"
-            sh "mkdir -p #{repos_path} && mv /tmp/#{ropts[:root]} #{rpath}"
-          else
-            sh "git clone --depth 1 --branch #{ropts[:branch] || 'master'} #{ropts[:url]} #{rpath}"
-          end
-          # run scripts
-          if ropts[:scripts]
-            ropts[:scripts].each do |script|
-              clean_shell "cd #{rpath} && #{script}"
-            end
-          end
-        end
-        rkey = opts[:repos].keys.first
-        ropts = repos[rkey]
-        if ropts[:type] == :git || ropts[:type].nil?
-          repo_path = File.join(repos_path, rkey.to_s)
-          sha1 = `git --git-dir #{repo_path}/.git rev-parse --short HEAD`.strip
-          tag += "-#{sha1}"
-        end
-      end
-
-      if !opts[:tag_forced]
-        opts[:tag] = tag
-        opts[:name_with_tag] = "#{opts[:name]}:#{opts[:tag]}"
-      end
-
-      # write service files
-      FileUtils.mkdir_p( File.join(context_path, 'services') )
-      svs = (opts[:services] || []) | (opts[:available_services] || [])
-      svs.each do |svc|
-        cmd = services[svc.to_sym]
-        raise "Service not found: #{svc}!" if cmd.nil?
-        ofp = File.join(context_path, 'services', "#{svc}.sh")
-        ostr = "#!/bin/bash\n#{cmd}"
-        if !File.exists?(ofp) || ostr != File.read(ofp)
-          File.write(ofp, ostr)
-          File.chmod(0755, ofp)
-        end
-      end
-
-      # write dockerfile to context
-      mt = opts[:manifest] || type
-      df_path = File.join(manifests_path, "#{mt.to_s}.dockerfile")
-      df_str = build_template_file(df_path)
-      cdf_path = File.join(context_path, "Dockerfile")
-      File.open(cdf_path, "w") {|fp| fp.write(df_str)}
-      cache_opts = no_cache ? "--no-cache " : ""
-
-      sh "sudo docker build -t #{opts[:name_with_tag]} --network host #{cache_opts}#{context_path}"
-
-      # write image info to build
-      FileUtils.mkdir_p( build_image_path ) if !File.directory?(build_image_path)
-      img_build_path = File.join(build_image_path, opts[:name])
-      File.write(img_build_path, opts.to_json)
-
+    filtered_images.each do |image|
+      image.build!(tag: tag, no_cache: no_cache)
     end
-    set :building_image_id, nil
   end
 
   ### PUSH_IMAGES
@@ -192,15 +106,8 @@ namespace :docker do
     reg = fetch(:registry_url)
     next if reg.nil?
 
-    images = fetch(:images)
-    insecure = fetch(:insecure_registry)
-    dvm = docker_version_meta
-    tag_cmd = (dvm[:major] == 1 && dvm[:minor] < 13) ? 'tag  -f' : 'tag'
-    filtered_image_types.each do |type|
-      opts = images[type]
-      reg_uri = image_uri(type)
-      sh "sudo docker #{tag_cmd} #{opts[:name_with_tag]} #{reg_uri}"
-      sh "sudo docker push #{reg_uri}"
+    filtered_images.each do |image|
+      image.push_to_registry!
     end
   end
 

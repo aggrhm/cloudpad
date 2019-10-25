@@ -121,56 +121,35 @@ module Cloudpad
     end
 
     def group(id, opts)
-      opts[:id] = id
-      opts[:env] ||= {}
-      fetch(:groups)[id] = Cloudpad::Group.new(self, opts)
+      Cloudpad::Group.add(id, opts)
     end
 
     def groups
-      fetch(:groups)
+      Cloudpad::Groups.map
     end
 
     def image(id, opts)
-      opts[:id] = id
-      opts[:env] ||= {}
-      opts[:files] ||= []
-      opts[:writable_dirs] ||= []
-      opts[:df_post_scripts] ||= []
-      fetch(:images)[id] = Cloudpad::Image.new(self, opts)
+      Cloudpad::Image.add(id, opts)
     end
 
     def images
-      fetch(:images)
+      Cloudpad::Image.map
     end
 
     def component(id, opts={})
-      opts[:id] = id
-      opts[:name] = id
-      opts[:groups] ||= [id]
-      opts[:images] ||= []
-      opts[:containers] ||= []
-      opts[:file_name] ||= id
-      opts[:file_subdir] ||= ""
-      opts[:env] ||= {}
-      fp = File.join(kube_path, opts[:file_subdir], opts[:file_name])
-      [".yml", ".yml.rb"].each do |ext|
-        file = fp + ext
-        if File.exists?(file)
-          opts[:file] = file
-          break
-        end
-      end
-      if opts[:file].blank?
-        raise "Kube config file could not be found."
-      end
-      opts[:build_file] = File.join(build_kube_path, opts[:file_subdir], "#{opts[:id]}.yml")
-      opts[:env_map] = opts[:env].collect{|k,v| {name: k, value: v}}
-
-      fetch(:components)[id] = Cloudpad::Component.new(self, opts)
+      Cloudpad::Component.add(id, opts)
     end
 
     def components
-      fetch(:components)
+      Cloudpad::Component.map
+    end
+
+    def job(id, opts={})
+      Cloudpad::Job.add(id, opts)
+    end
+
+    def jobs
+      Cloudpad::Job.map
     end
 
     def container_type(id, opts)
@@ -178,8 +157,7 @@ module Cloudpad
       fetch(:container_types)[id] = Hash[opts]
     end
     def repo(id, opts)
-      opts[:id] = id
-      fetch(:repos)[id] = Cloudpad::Repo.new(self, opts)
+      Cloudpad::Repo.add(id, opts)
     end
     def service(id, opts)
       opts[:id] = id
@@ -207,6 +185,9 @@ module Cloudpad
       else
         fetch(:images)[name]
       end
+    end
+    def building_spec
+      fetch(:building_spec)
     end
     def image_opts(name=nil)
       building_image(name)

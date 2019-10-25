@@ -9,45 +9,10 @@ namespace :kube do
     invoke "docker:push_images"
   end
 
-  desc "Prepare config resources"
-  task :prepare_config do
-    puts "Building kubernetes configuration files..."
-    imgs = fetch(:images)
-    basedir = Pathname.new(kube_path)
-    FileUtils.mkdir_p(build_kube_path)
-    filtered_components.each do |cmp|
-      set :building_component_id, cmp[:id]
-      # check if tag is known for images
-      cmp[:images].collect{|id| imgs[id]}.each do |img|
-        if img[:tag].blank?
-          raise "Image #{img[:id]} does not have a known tag set."
-        end
-      end
-      puts "Building file #{cmp[:build_file]}"
-      out = build_template_file(cmp[:file])
-      # create necessary directories
-      if !File.directory?((bsd = File.dirname(cmp[:build_file])))
-        sh "mkdir -p #{bsd}"
-      end
-      File.write(cmp[:build_file], out)
-      set :building_component_id, nil
-    end
-  end
-
-  desc "Apply configuration"
-  task :apply do
-    app_key = fetch(:app_key)
-    comps = filtered_components
-    comp_files = comps.collect{|opts| opts[:build_file] }
-    args = comp_files.collect{|f| "-f #{f}"}.join(" ")
-    sh "#{kubecmd} apply #{args}"
-  end
-
   task :deploy do
     if ENV['build'] != 'false'
       invoke "kube:build"
     end
-    invoke "kube:deploy:init"
     invoke "kube:apply"
   end
 
@@ -82,42 +47,49 @@ namespace :kube do
     sh "#{kubecmd} logs #{name}"
   end
 
-  namespace :deploy do
+  desc "Apply configuration"
+  task :apply do
+    invoke "kube:apply:init_jobs"
+    invoke "kube:apply:components"
+  end
 
-    task :init do
+  namespace :apply do
+
+    task :init_jobs do
       # run jobs for relevant components
       cmps = filtered_components
-      jfs = cmps.collect{|cmp| cmp[:init_jobs] || []}.flatten.uniq
-      # run each job
-      jfs.each do |jf|
-        jfn = "#{jf}.yml"
-        cf = File.join(kube_path, jfn)
-        of = File.join(build_kube_path, jfn)
-        write_template_file(cf, of)
-        jd = YAML.load_file(of).with_indifferent_access
-        jname = jd[:metadata][:name]
+      jids = cmps.collect{|cmp| cmp[:init_jobs] || []}.flatten.uniq
+      jcmps = Cloudpad::Job.with_ids(jids)
+      next if jcmps.length == 0
 
-        puts "Running job #{jname}..."
-        # delete job first
-        sh "#{kubecmd} delete job #{jname} --ignore-not-found=true"
-        sh "#{kubecmd} apply -f #{of}"
-        puts "Waiting for job".yellow
-        loop do
-          js = JSON.parse(`#{kubecmd} get job/#{jname} -o json`)
-          if js['status']['failed'].to_i > 0
-            raise "Job did not successfully finish.".red
-          end
-          if js['status']['succeeded'].to_i >= js['spec']['completions'].to_i
-            puts "Job completed successfully.".green
-            break
-          end
-          sleep 1
-        end
+      # write each job
+      puts "Building Kubernetes init job configuration files..."
+      jcmps.each do |jcmp|
+        jcmp.build_spec!
       end
+
+      # run each job
+      jcmp.each do |jcmp|
+        jcmp.run!
+      end
+    end
+    
+    task :components do
+      app_key = fetch(:app_key)
+      comps = filtered_components
+
+      # build comp files
+      puts "Building Kubernetes component configuration files..."
+      comps.each do |comp|
+        comp.build_spec!
+      end
+
+      # apply files
+      Cloudpad::KubeSpec.apply_specs!(comps)
     end
 
   end
 
 end
 
-before "kube:apply", "kube:prepare_config"
+#before "kube:apply", "kube:prepare_config"

@@ -3,12 +3,21 @@ require "cloudpad/version"
 require "cloudpad/task_utils"
 require "cloudpad/cloud"
 require "cloudpad/docker"
+require "cloudpad/kube"
 require "active_support/core_ext"
 
 module Cloudpad
 
   def self.gem_context_path
     File.expand_path("../../context", __FILE__)
+  end
+
+  def self.context=(ctx)
+    @context = ctx
+  end
+
+  def self.context
+    return @context
   end
 
   module Context
@@ -80,3 +89,5 @@ load File.expand_path("../cloudpad/tasks/nodes.rake", __FILE__)
 load File.expand_path("../cloudpad/tasks/hosts.rake", __FILE__)
 load File.expand_path("../cloudpad/tasks/docker.rake", __FILE__)
 load File.expand_path("../cloudpad/tasks/kube.rake", __FILE__)
+
+Cloudpad.context = self
