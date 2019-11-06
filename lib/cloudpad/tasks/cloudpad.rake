@@ -73,15 +73,15 @@ namespace :cloudpad do
       },
       install_image_gemfiles: lambda {
         str = ""
-        image_opts[:repos].each do |repo, dest|
+        building_image[:repos].each do |repo, dest|
           str << dfi(:install_gemfile, "conf/#{repo}_gemfile") + "\n"
         end
         str
       },
       install_image_repos: lambda {
         str = ""
-        raise "No image repos specified in dfi for install_image_repos." if image_opts[:repos].nil?
-        image_opts[:repos].each do |repo, dest|
+        raise "No image repos specified in dfi for install_image_repos." if building_image[:repos].nil?
+        building_image[:repos].each do |repo, dest|
           str << dfi(:install_repo, repo, dest) + "\n"
         end
         str
@@ -89,12 +89,12 @@ namespace :cloudpad do
       install_image_services: lambda {
         str = ""
         str << "ADD ext/cloudpad/bin/install_services /etc/init.d/install_services\n"
-        image_opts[:available_services].each do |svc|
+        building_image[:available_services].each do |svc|
           str << "ADD services/#{svc}.sh /root/services/#{svc}.sh\n"
-        end unless image_opts[:available_services].nil?
-        image_opts[:services].each do |svc|
+        end unless building_image[:available_services].nil?
+        building_image[:services].each do |svc|
           str << "ADD services/#{svc}.sh /etc/service/#{svc}/run\n"
-        end unless image_opts[:services].nil?
+        end unless building_image[:services].nil?
         str
       },
       run: lambda {|script, *args|
@@ -131,7 +131,7 @@ namespace :cloudpad do
         dirs = building_image[:writable_dirs]
         if dirs.length > 0
           str << "RUN chgrp -R 0 #{dirs.join(" ")}\n"
-          str << "RUN chmod -R g+rwx #{dirs.join(" ")}\n"
+          str << "RUN chmod -R g=u #{dirs.join(" ")}\n"
         end
         str
       }

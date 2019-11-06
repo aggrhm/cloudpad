@@ -131,6 +131,20 @@ module Cloudpad
   ## NODE
   class Node < CloudElement
 
+    def self.prompt_add_node(c, opts={})
+      cloud = c.fetch(:cloud)
+      node = Cloudpad::Node.new
+      node.name = c.prompt("Enter node name")
+      node.external_ip = c.prompt("Enter external ip")
+      node.internal_ip = c.prompt("Enter internal ip")
+      node.roles = opts[:roles] || c.prompt("Enter roles (comma-separated)", "host").split(",").collect{|r| r.downcase.to_sym}
+      node.user = c.prompt("Enter login user", "ubuntu")
+      node.os = c.prompt("Enter node OS", "ubuntu")
+      cloud.nodes << node
+      cloud.update_cache
+      puts "Node #{node.name} added."
+    end
+
     def internal_ip
       self["internal_ip"] || self["external_ip"]
     end
@@ -357,6 +371,9 @@ module Cloudpad
       opts[:files] ||= []
       opts[:writable_dirs] ||= []
       opts[:df_post_scripts] ||= []
+      opts[:files].each do |f|
+        f[:context] ||= f[:local]
+      end
     end
     def tag
       self[:tag]
@@ -390,8 +407,8 @@ module Cloudpad
       c.set :building_image, self
 
       # clear context dir
-      sh "rm -rf #{c.context_path}"
-      sh "mkdir #{c.context_path}"
+      c.sh "rm -rf #{c.context_path}"
+      c.sh "mkdir #{c.context_path}"
       File.write(File.join(c.context_path, ".build-info"), Time.now.to_s)
 
       # install extensions
@@ -401,7 +418,12 @@ module Cloudpad
       self[:files].each do |fopts|
         next if fopts[:local].blank?
         cp = File.join(c.context_path, (fopts[:context] || fopts[:local]))
-        sh "mkdir -p `dirname #{cp}` && cp -a #{fopts[:local]} #{cp}"
+        if fopts[:template] == true
+          c.write_template_file(fopts[:local], cp)
+        else
+          puts "Adding context file #{cp}"
+          c.sh "mkdir -p `dirname #{cp}` && cp -a #{fopts[:local]} #{cp}"
+        end
       end
 
       # if repo, clone and append git hash to tag
@@ -441,11 +463,11 @@ module Cloudpad
       File.open(cdf_path, "w") {|fp| fp.write(df_str)}
       cache_opts = no_cache ? "--no-cache " : ""
 
-      sh "sudo docker build -t #{self[:name_with_tag]} --network host #{cache_opts}#{c.context_path}"
+      c.sh "sudo docker build -t #{self[:name_with_tag]} --network host #{cache_opts}#{c.context_path}"
 
       # write image info to build
       FileUtils.mkdir_p( c.build_image_path ) if !File.directory?(c.build_image_path)
-      img_build_path = File.join(c.build_image_path, opts[:name])
+      img_build_path = File.join(c.build_image_path, self[:name])
       File.write(img_build_path, {id: id, tag: self[:tag]}.to_json)
 
       c.set :building_image, nil
@@ -456,8 +478,8 @@ module Cloudpad
       dvm = c.docker_version_meta
       tag_cmd = (dvm[:major] == 1 && dvm[:minor] < 13) ? 'tag  -f' : 'tag'
       reg_uri = self.image_uri
-      sh "sudo docker #{tag_cmd} #{name_with_tag} #{reg_uri}"
-      sh "sudo docker push #{reg_uri}"
+      c.sh "sudo docker #{tag_cmd} #{name_with_tag} #{reg_uri}"
+      c.sh "sudo docker push #{reg_uri}"
     end
   end
 
@@ -474,11 +496,11 @@ module Cloudpad
       puts "Downloading #{id} repository to context...".yellow
       if self[:type] == :tar
         tar_path = "/tmp/#{id}#{File.extname(self[:url])}"
-        sh "wget #{self[:url]} -O #{tar_path}"
-        sh "tar -C /tmp -zxvf #{tar_path}"
-        sh "mkdir -p #{c.repos_path} && mv /tmp/#{self[:root]} #{rpath}"
+        c.sh "wget #{self[:url]} -O #{tar_path}"
+        c.sh "tar -C /tmp -zxvf #{tar_path}"
+        c.sh "mkdir -p #{c.repos_path} && mv /tmp/#{self[:root]} #{rpath}"
       else
-        sh "git clone --depth 1 --branch #{self[:branch] || 'master'} #{self[:url]} #{rpath}"
+        c.sh "git clone --depth 1 --branch #{self[:branch] || 'master'} #{self[:url]} #{rpath}"
       end
       # run scripts
       if self[:scripts]

@@ -4,15 +4,15 @@ module Cloudpad
 
     def self.apply_specs!(specs)
       c = Cloudpad.context
-      comp_files = comps.collect{|opts| opts[:build_file] }
+      comp_files = specs.collect{|spec| spec[:build_file] }
       args = comp_files.collect{|f| "-f #{f}"}.join(" ")
-      sh "#{c.kubecmd} apply #{args}"
+      c.sh "#{c.kubecmd} apply #{args}"
     end
 
     def prepare_options
       opts = @options
       ctx = @context
-      opts[:name] = id
+      opts[:name] ||= id
       opts[:groups] ||= [id]
       opts[:images] ||= []
       opts[:containers] ||= []
@@ -31,27 +31,26 @@ module Cloudpad
         raise "Kube config file could not be found."
       end
       opts[:build_file] = File.join(ctx.build_kube_path, opts[:file_subdir], "#{opts[:id]}.yml")
+      if opts[:full_command].is_a?(String)
+        cps = opts[:full_command].split(" ")
+        opts[:command] = [cps[0]]
+        opts[:args] = cps[1..-1]
+      end
     end
     def images
-      (self[:images] || []).collect{|id| ctx.images[id]}.compact
+      (self[:images] || []).collect{|id| Cloudpad::Image.map[id]}.compact
     end
     def groups
-      (self[:groups] || []).collect{|id| ctx.groups[id]}.compact
+      (self[:groups] || []).collect{|id| Cloudpad::Group.map[id]}.compact
     end
     def full_env
       env = self.groups.reduce({}){|res, g| res.merge(g[:env] || {})}
       env.merge(self[:env])
     end
     def containers
-      ret = self[:containers].collect {|copts| @options.merge(copts)}
-      ret = [@options] if ret.length == 0
-      ret.each do |copts|
-        if copts[:full_command].is_a?(String)
-          cps = copts[:full_command].split(" ")
-          copts[:command] = [cps[0]]
-          copts[:args] = cps[1..-1]
-        end
-      end
+      ret = self[:containers].collect {|copts| KubeSpec.new(@options.merge(copts))}
+      ret = [self] if ret.length == 0
+      return ret
     end
 
     def build_spec!
@@ -93,8 +92,8 @@ module Cloudpad
 
       puts "Running job #{jname}..."
       # delete job first
-      sh "#{c.kubecmd} delete job #{jname} --ignore-not-found=true"
-      sh "#{c.kubecmd} apply -f #{of}"
+      c.sh "#{c.kubecmd} delete job #{jname} --ignore-not-found=true"
+      c.sh "#{c.kubecmd} apply -f #{of}"
       puts "Waiting for job".yellow
       loop do
         js = JSON.parse(`#{c.kubecmd} get job/#{jname} -o json`)

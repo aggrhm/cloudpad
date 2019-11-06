@@ -20,7 +20,18 @@ module Cloudpad
     return @context
   end
 
-  module Context
+  class Context
+    def initialize(c)
+      @context = c
+    end
+    def method_missing(name, *args, &block)
+      @context.instance_eval {|obj|
+        self.send name, *args, &block
+      }
+    end
+  end
+
+  module Puppet
 
     # install puppet
     def self.ensure_puppet_installed(c)
@@ -61,26 +72,11 @@ module Cloudpad
       c.execute cmd
     end
 
-    def self.prompt_add_node(c, opts={})
-      cloud = c.fetch(:cloud)
-      node = Cloudpad::Node.new
-      node.name = c.prompt("Enter node name")
-      node.external_ip = c.prompt("Enter external ip")
-      node.internal_ip = c.prompt("Enter internal ip")
-      node.roles = opts[:roles] || c.prompt("Enter roles (comma-separated)", "host").split(",").collect{|r| r.downcase.to_sym}
-      node.user = c.prompt("Enter login user", "ubuntu")
-      node.os = c.prompt("Enter node OS", "ubuntu")
-      cloud.nodes << node
-      cloud.update_cache
-      puts "Node #{node.name} added."
-    end
-
-
   end
 
 end
 
-include Cloudpad::TaskUtils
+extend Cloudpad::TaskUtils
 
 load File.expand_path("../cloudpad/tasks/cloudpad.rake", __FILE__)
 load File.expand_path("../cloudpad/tasks/app.rake", __FILE__)
@@ -90,4 +86,4 @@ load File.expand_path("../cloudpad/tasks/hosts.rake", __FILE__)
 load File.expand_path("../cloudpad/tasks/docker.rake", __FILE__)
 load File.expand_path("../cloudpad/tasks/kube.rake", __FILE__)
 
-Cloudpad.context = self
+Cloudpad.context = Cloudpad::Context.new(self)

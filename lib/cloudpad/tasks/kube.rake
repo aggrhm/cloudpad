@@ -69,7 +69,7 @@ namespace :kube do
       end
 
       # run each job
-      jcmp.each do |jcmp|
+      jcmps.each do |jcmp|
         jcmp.run!
       end
     end

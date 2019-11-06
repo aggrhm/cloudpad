@@ -104,11 +104,12 @@ module Cloudpad
       elsif name.ends_with?(".json.rb")
         return ConfigBuilder.new(name).to_json
       else
-        return ERB.new(File.read(name)).result(binding)
+        return ERB.new(File.read(name), nil, "-").result(binding)
       end
     end
 
     def write_template_file(infile, outfile)
+      puts "Writing template #{outfile} from #{infile}"
       out = build_template_file(infile)
       dir = File.dirname(outfile)
       FileUtils.mkdir_p(dir)
@@ -179,34 +180,11 @@ module Cloudpad
       cvs[name] = var
     end
 
-    def building_image(name=nil)
-      if name.nil?
-        fetch(:images)[fetch(:building_image_id)]
-      else
-        fetch(:images)[name]
-      end
+    def building_image
+      fetch(:building_image)
     end
     def building_spec
       fetch(:building_spec)
-    end
-    def image_opts(name=nil)
-      building_image(name)
-    end
-
-    def image_uri(name, opts={})
-      reg = fetch(:registry_url)
-      ns = fetch(:registry_namespace)
-      nt = image_opts(name)[:name_with_tag]
-      if ns.present?
-        path = "#{ns}/#{nt}"
-      else
-        path = nt
-      end
-      if opts[:full] == false
-        return path
-      else
-        return "#{reg}/#{path}"
-      end
     end
 
     def building_image?(img)
@@ -216,18 +194,6 @@ module Cloudpad
     def container_public_key
       kp = File.join(context_path, "keys", "container.key.pub")
       return File.read(kp).gsub("\n", "")
-    end
-
-    def comp_opts(name=nil)
-      if name.nil?
-        fetch(:components)[fetch(:building_component_id)]
-      else
-        fetch(:components)[name]
-      end
-    end
-
-    def building_component_id
-      fetch(:building_component_id)
     end
 
     def next_available_server(type, filt=nil)

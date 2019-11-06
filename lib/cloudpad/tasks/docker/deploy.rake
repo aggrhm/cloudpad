@@ -6,7 +6,7 @@ namespace :docker do
     type = ENV['type'].to_sym
     count = ENV['count'] ? ENV['count'].to_i : 1
     filt = ENV['chost'] ? ENV['chost'].split(',') : nil
-    Cloudpad::Docker::Context.add_container(self, type: type, count: count, host_filter: filt)
+    Cloudpad::Docker.add_container(type: type, count: count, host_filter: filt)
   end
 
 
@@ -15,7 +15,7 @@ namespace :docker do
   task :remove do
     name = ENV['name']
     type = ENV['type']
-    Cloudpad::Docker::Context.remove_container(self, name: name, type: type)
+    Cloudpad::Docker.remove_container(name: name, type: type)
   end
 
 
@@ -50,13 +50,13 @@ namespace :docker do
   ### CHECK_RUNNING
   desc "Check running containers"
   task :check_running do
-    Cloudpad::Docker::Context.check_running(self, do_print: true)
+    Cloudpad::Docker.check_running(do_print: true)
   end
 
   ### CHECK_IMAGES
   desc "Check launcher images"
   task :check_launcher_images do
-    Cloudpad::Docker::Context.check_launcher_images(self)
+    Cloudpad::Docker.check_launcher_images
   end
 
   ### LIST
@@ -122,7 +122,7 @@ namespace :docker do
   ### MAINTAIN
   task :maintain do
     noop = parse_env("noop")
-    changes = Cloudpad::Docker::Context.compute_container_changes(self)
+    changes = Cloudpad::Docker.compute_container_changes
     puts "#{changes.length} container changes needed.".yellow
     changes.each do |c|
       s = c[:spec]
@@ -134,9 +134,9 @@ namespace :docker do
       puts "Executing changes...".yellow
       invoke "docker:update_host_images"
       changes.each do |c|
-        Cloudpad::Docker::Context.execute_container_change(self, c)
+        Cloudpad::Docker.execute_container_change(c)
       end
-      Cloudpad::Docker::Context.check_running(self)
+      Cloudpad::Docker.check_running
     end
   end
 

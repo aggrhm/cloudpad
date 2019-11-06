@@ -2,13 +2,13 @@ namespace :launcher do
 
   task :ensure_docker do
     run_locally do
-      Cloudpad::Docker::Context.install_docker(self)
+      Cloudpad::Docker.install_docker(self)
     end
   end
 
   task :remove_docker do
     run_locally do
-      Cloudpad::Docker::Context.remove_docker(self)
+      Cloudpad::Docker.remove_docker(self)
     end
   end
 
@@ -112,13 +112,13 @@ namespace :launcher do
       if !File.directory?(puppet_path)
         execute "mkdir -p #{puppet_path}"
       end
-      Cloudpad::Context.ensure_puppet_installed(self)
-      Cloudpad::Context.ensure_puppet_modules_installed(self)
+      Cloudpad::Puppet.ensure_puppet_installed(self)
+      Cloudpad::Puppet.ensure_puppet_modules_installed(self)
       # apply manifest
       mf = File.join(puppet_path, "manifests", "site.pp")
       if File.exists?(mf)
         mp = File.join(puppet_path, "modules")
-        Cloudpad::Context.puppet_apply(self, manifest: mf, module_path: mp)
+        Cloudpad::Puppet.puppet_apply(self, manifest: mf, module_path: mp)
       end
     end
   end
@@ -128,7 +128,7 @@ namespace :launcher do
     ver = ENV['version']
     mod_dir = File.join puppet_path, "modules"
     run_locally do
-      Cloudpad::Context.ensure_puppet_installed(self)
+      Cloudpad::Puppet.ensure_puppet_installed(self)
       cmd = "sudo puppet module uninstall #{mod_name} --modulepath #{mod_dir}"
       cmd << " --version #{ver}" if ver
       execute cmd
@@ -145,7 +145,7 @@ namespace :launcher do
   task :clean_images do
     puts "Cleaning local docker images...".yellow
     run_locally do
-      Cloudpad::Docker::Context.clean_images(self)
+      Cloudpad::Docker.clean_images(self)
     end
   end
 
