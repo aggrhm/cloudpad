@@ -11,7 +11,7 @@ namespace :docker do
       opts = repos[name]
       next if opts.nil? # this is not a managed repository
       ru = opts[:url]
-      rb = opts[:branch] || "master"
+      rb = opts[:branch] || opts[:tag] || "master"
       au = opts[:scripts] || []
       rp = File.join(repos_path, name.to_s)
       if !File.directory?(rp)
