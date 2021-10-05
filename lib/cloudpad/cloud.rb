@@ -406,10 +406,10 @@ module Cloudpad
       puts "Building #{id} image...".yellow
       c.set :building_image, self
 
-      # clear context dir
-      c.sh "rm -rf #{c.context_path}"
-      c.sh "mkdir #{c.context_path}"
+      # create context dir
+      c.create_context_path
       File.write(File.join(c.context_path, ".build-info"), Time.now.to_s)
+      puts "Context directory: #{c.context_path}".yellow
 
       # install extensions
       c.install_context_extensions
@@ -471,6 +471,7 @@ module Cloudpad
       File.write(img_build_path, {id: id, tag: self[:tag]}.to_json)
 
       c.set :building_image, nil
+      c.remove_context_path
     end
 
     def push_to_registry!

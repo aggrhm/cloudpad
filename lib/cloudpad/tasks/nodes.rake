@@ -5,7 +5,7 @@ namespace :nodes do
     cloud = fetch(:cloud)
     cloud.update
     nodes = cloud.nodes
-    host_key = File.join(context_path, "keys", "node.key")
+    host_key = File.join(root_path, "keys", "node.key")
     has_host_key = File.exists?(host_key)
     puts "#{nodes.length} nodes found.".green
     role_filter = ENV['ROLES'] || ENV['NODE_ROLES']

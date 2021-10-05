@@ -91,9 +91,9 @@ namespace :docker do
     no_cache = parse_env('no_cache') || false
     puts "No images to build".red if images.empty?
 
-    if File.directory?(context_path) && !File.exist?(File.join(context_path, ".build-info"))
-      raise "Context has been modified manually. Cannot clear.".red
-    end
+    #if File.directory?(context_path) && !File.exist?(File.join(context_path, ".build-info"))
+      #raise "Context has been modified manually. Cannot clear.".red
+    #end
 
     filtered_images.each do |image|
       image.build!(tag: tag, no_cache: no_cache)

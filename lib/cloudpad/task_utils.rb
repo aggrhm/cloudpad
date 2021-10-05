@@ -54,10 +54,23 @@ module Cloudpad
       File.join(Dir.pwd, "manifests")
     end
     def context_path
-      File.join(Dir.pwd, "context")
+      dn = fetch(:tmp_context_path)
+      raise "Context path not yet created." if dn.nil?
+      return dn
+    end
+    def create_context_path
+      raise "Context path already exists" if !fetch(:tmp_context_path).nil?
+      dn = File.join "/tmp", "cloudpad-context-#{SecureRandom.hex(5)}"
+      set(:tmp_context_path, dn)
+      sh "mkdir -p #{dn}"
+      return dn
+    end
+    def remove_context_path
+      sh "rm -rf #{context_path}"
+      set(:tmp_context_path, nil)
     end
     def context_extensions_path
-      File.join(Dir.pwd, "context", "ext")
+      File.join(context_path, "ext")
     end
     def cloud_path
       File.join(Dir.pwd, "config", "cloud")
