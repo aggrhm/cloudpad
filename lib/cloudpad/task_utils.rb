@@ -91,13 +91,13 @@ module Cloudpad
       File.join root_path, "kube"
     end
     def build_path
-      File.join root_path, "build"
+      File.join root_path, "build", fetch(:stage).to_s
     end
     def build_image_path
-      File.join root_path, "build", "image"
+      File.join build_path, "image"
     end
     def build_kube_path
-      File.join root_path, "build", "kube"
+      File.join build_path, "kube"
     end
 
     def prompt(question, default=nil)
@@ -464,6 +464,8 @@ module Cloudpad
     end
 
     def kubecmd
+      kc = fetch(:kube_command)
+      return kc if kc
       ns = fetch(:kube_namespace)
       raise "Kube namespace not defined." if ns.blank?
       if fetch(:kube_dist) == :openshift
