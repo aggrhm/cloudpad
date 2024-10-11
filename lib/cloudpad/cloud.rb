@@ -411,6 +411,24 @@ module Cloudpad
       File.write(File.join(c.context_path, ".build-info"), Time.now.to_s)
       puts "Context directory: #{c.context_path}".yellow
 
+      if self[:manifest]
+        build_image_from_manifest!(tag: tag, no_cache: no_cache)
+      else
+        build_image_from_repo!(tag: tag, no_cache: no_cache)
+      end
+
+      # write image info to build
+      FileUtils.mkdir_p( c.build_image_path ) if !File.directory?(c.build_image_path)
+      img_build_path = File.join(c.build_image_path, self[:name])
+      File.write(img_build_path, {id: id, tag: self[:tag]}.to_json)
+
+      c.set :building_image, nil
+      c.remove_context_path
+    end
+
+    def build_image_from_manifest!(tag:, no_cache:)
+      c = Cloudpad.context
+
       # install extensions
       c.install_context_extensions
 
@@ -465,13 +483,24 @@ module Cloudpad
 
       c.sh "sudo docker build -t #{self[:name_with_tag]} --network host #{cache_opts}#{c.context_path}"
 
-      # write image info to build
-      FileUtils.mkdir_p( c.build_image_path ) if !File.directory?(c.build_image_path)
-      img_build_path = File.join(c.build_image_path, self[:name])
-      File.write(img_build_path, {id: id, tag: self[:tag]}.to_json)
+    end
 
-      c.set :building_image, nil
-      c.remove_context_path
+    def build_image_from_repo!(tag:, no_cache:)
+      c = Cloudpad.context
+      rid = self[:repo]
+      repo = Cloudpad::Repo.map[rid]
+      repo.add_to_context!
+      if repo[:type] == :git || repo[:type].nil?
+        sha1 = repo.sha1
+        tag += "-#{sha1}"
+      end
+      if !self[:tag_forced]
+        self[:tag] = tag
+        self[:name_with_tag] = "#{self[:name]}:#{self[:tag]}"
+      end
+
+      cache_opts = no_cache ? "--no-cache " : ""
+      c.sh "sudo docker build -t #{self[:name_with_tag]} --network host #{cache_opts}#{repo.context_path}"
     end
 
     def push_to_registry!
@@ -510,6 +539,10 @@ module Cloudpad
         end
       end
 
+    end
+    def sha1
+      repo_path = context_path
+      sha1 = `git --git-dir #{repo_path}/.git rev-parse --short HEAD`.strip
     end
   end
 
